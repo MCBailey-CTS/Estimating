@@ -4,7 +4,27 @@ Sub CATMain()
     Dim mainDirectory as String
     mainDirectory = "G:\CTS\junk\0Ufunc Testing\Project_Estimating"
 
+    Dim translateDirectory As String
+    translateDirectory = mainDirectory & "\TSG - Translated Data"
+
+    Dim suppliedDirectory As String
+    suppliedDirectory = mainDirectory & "\Supplied Cad Data"
+
+    Dim photosDirectory As String
+    photosDirectory = mainDirectory & "\Photos"
+
+
+    ' FileSystemObject.CopyFile "C:\Catia\Project_Estimating\CAD Info.xlsx", mainDirectory & "\CAD Info.xlsx"
+
+
     Set objFSO = Createobject("Scripting.FileSystemObject")
+
+    objFSO.CreateFolder(translateDirectory)
+    objFSO.CreateFolder(suppliedDirectory)
+    objFSO.CreateFolder(photosDirectory)
+    objFSO.CopyFile "C:\Catia\Project_Estimating\CAD Info.xlsx", mainDirectory & "\CAD Info.xlsx"
+
+
     Set oFolder = objFSO.GetFolder(mainDirectory)
     For Each oFile in oFolder.Files
 
@@ -38,11 +58,42 @@ Sub CATMain()
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
-            CATIA.ActiveDocument.ExportData igsPath, "igs"
+            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".igs", "igs"
 
-            CATIA.ActiveDocument.ExportData stpPath, "stp"
+            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".stp", "stp"
+
+            ' CATIA.ActiveDocument.ExportData stpPath, "stp"
+
+            Dim objSpec As SpecsAndGeomWindow
+            Set objSpec = CATIA.ActiveWindow
+            Dim objViewer As Viewer
+            Set objViewer = objSpec.ActiveViewer
+            Dim FileTmp As String
+            FileTmp = photosDirectory & "\" & fileLeaf & ".bmp"
+            objViewer.CaptureToFile catCaptureFormatBMP, FileTmp
+
+
+
+
+            ' Dim mainBody As Body
+            ' Set mainBody = CATIA.ActiveDocument.Part.MainBody
+
+            ' ' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+            ' ' theHSF = mainBody.HybridShapeFactory
+
+            ' ' Dim body As Body
+            ' ' Set body = CATIA.ActiveDocument.Part.Bodies.MainBody
+            ' Dim hybridBodyColl As HybridBodies
+            ' hybridBodyColl = mainBody.HybridBodies
+
+            ' MsgBox "hello" & hybridBodyColl.Count
+
+
+
 
             CATIA.ActiveWindow.Close()
+
+            objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
          Case ".stp"
             CATIA.Documents.Open(dataPath)
 
@@ -54,6 +105,15 @@ Sub CATMain()
 
             CATIA.ActiveWindow.Close()
          Case ".igs"
+            CATIA.Documents.Open(dataPath)
+
+            CATIA.ActiveWindow.ActiveViewer.Reframe
+
+            CATIA.ActiveDocument.SaveAs catPath
+
+            CATIA.ActiveDocument.ExportData stpPath, "stp"
+
+            CATIA.ActiveWindow.Close()
          Case Else
             MsgBox "Unknown extension: '" & dataExtension & "'"
 
