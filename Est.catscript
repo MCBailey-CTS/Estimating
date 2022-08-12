@@ -25,6 +25,20 @@ Sub CATMain()
     objFSO.CopyFile "C:\Catia\Project_Estimating\CAD Info.xlsx", mainDirectory & "\CAD Info.xlsx"
 
 
+    Dim myExcel As Microsoft.Office.Interop.Excel.Application
+
+    Set myExcel = CreateObject("Excel.Application")
+    myExcel.Workbooks.Open(mainDirectory & "\CAD Info.xlsx")
+    Dim myWorkbook As Microsoft.Office.Interop.Excel.Workbook
+    Set myWorkbook = myExcel.Workbooks.Item(1)
+    myWorkbook.Activate()
+    myWorkbook.Sheets(1).Select()
+    Set myWorksheet = myWorkbook.ActiveSheet
+    myWorksheet.Columns("B:B").ColumnWidth = 20
+    'myExcel.Visible = True
+    Dim iRow As Integer
+    iRow = 2
+
     Set oFolder = objFSO.GetFolder(mainDirectory)
     For Each oFile in oFolder.Files
 
@@ -62,17 +76,11 @@ Sub CATMain()
 
             CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".stp", "stp"
 
-            ' CATIA.ActiveDocument.ExportData stpPath, "stp"
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosDirectory & "\" & fileLeaf & ".bmp"
 
-            Dim objSpec As SpecsAndGeomWindow
-            Set objSpec = CATIA.ActiveWindow
-            Dim objViewer As Viewer
-            Set objViewer = objSpec.ActiveViewer
-            Dim FileTmp As String
-            FileTmp = photosDirectory & "\" & fileLeaf & ".bmp"
-            objViewer.CaptureToFile catCaptureFormatBMP, FileTmp
+            myWorksheet.Cells(iRow, 18).RowHeight = 80
 
-
+            myWorksheet.Cells(iRow, 18).Value  = fileLeaf & ".bmp"
 
 
             ' Dim mainBody As Body
@@ -94,26 +102,53 @@ Sub CATMain()
             CATIA.ActiveWindow.Close()
 
             objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
+
+            iRow = iRow + 1
          Case ".stp"
             CATIA.Documents.Open(dataPath)
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
-            CATIA.ActiveDocument.SaveAs catPath
+            CATIA.ActiveDocument.SaveAs translateDirectory & "\" & fileLeaf & ".catpart"
 
-            CATIA.ActiveDocument.ExportData igsPath, "igs"
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosDirectory & "\" & fileLeaf & ".bmp"
+
+            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".igs", "igs"
 
             CATIA.ActiveWindow.Close()
+
+            objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
+
+            myWorksheet.Cells(iRow, 18).RowHeight = 80
+
+            myWorksheet.Cells(iRow, 18).Value  = fileLeaf & ".bmp"
+
+            iRow = iRow + 1
+
+
+
          Case ".igs"
             CATIA.Documents.Open(dataPath)
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
-            CATIA.ActiveDocument.SaveAs catPath
+            CATIA.ActiveDocument.SaveAs translateDirectory & "\" & fileLeaf & ".catpart"
 
-            CATIA.ActiveDocument.ExportData stpPath, "stp"
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosDirectory & "\" & fileLeaf & ".bmp"
+
+            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".stp", "stp"
 
             CATIA.ActiveWindow.Close()
+
+            objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
+
+            myWorksheet.Cells(iRow, 18).RowHeight = 80
+
+            myWorksheet.Cells(iRow, 18).Value  = fileLeaf & ".bmp"
+
+            iRow = iRow + 1
+
+
          Case Else
             MsgBox "Unknown extension: '" & dataExtension & "'"
 
@@ -123,5 +158,8 @@ Sub CATMain()
         Next
 
 
+        myWorkbook.Save()
+        myExcel.Quit()
+        myExcel.Quit()
 
 End Sub
