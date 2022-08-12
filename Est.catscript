@@ -1,0 +1,67 @@
+Language="VBSCRIPT"
+
+Sub CATMain()
+    Dim mainDirectory as String
+    mainDirectory = "G:\CTS\junk\0Ufunc Testing\Project_Estimating"
+
+    Set objFSO = Createobject("Scripting.FileSystemObject")
+    Set oFolder = objFSO.GetFolder(mainDirectory)
+    For Each oFile in oFolder.Files
+
+        Dim dataPath As String
+        dataPath = oFile
+
+        Dim fileName as String
+        fileName = LCase(oFile.Name)
+
+        Dim dotIndex As Integer
+        dotIndex = InStrRev(fileName,".")
+
+        Dim dataExtension As String
+        dataExtension = LCase(Mid(fileName, dotIndex))
+
+        Dim fileLeaf As String
+        fileLeaf = LCase(Left(fileName,dotIndex - 1))
+
+        Dim catPath as String
+        catPath = mainDirectory & "\" & fileLeaf & ".catpart"
+
+        Dim igsPath As String
+        igsPath = mainDirectory & "\" & fileLeaf & ".igs"
+
+        Dim stpPath As String
+        stpPath = mainDirectory & "\" & fileLeaf & ".stp"
+
+        Select Case dataExtension
+         Case ".catpart"
+            CATIA.Documents.Open(dataPath)
+
+            CATIA.ActiveWindow.ActiveViewer.Reframe
+
+            CATIA.ActiveDocument.ExportData igsPath, "igs"
+
+            CATIA.ActiveDocument.ExportData stpPath, "stp"
+
+            CATIA.ActiveWindow.Close()
+         Case ".stp"
+            CATIA.Documents.Open(dataPath)
+
+            CATIA.ActiveWindow.ActiveViewer.Reframe
+
+            CATIA.ActiveDocument.SaveAs catPath
+
+            CATIA.ActiveDocument.ExportData igsPath, "igs"
+
+            CATIA.ActiveWindow.Close()
+         Case ".igs"
+         Case Else
+            MsgBox "Unknown extension: '" & dataExtension & "'"
+
+        End Select
+
+
+        Next
+
+
+
+End Sub
