@@ -1,7 +1,23 @@
 Language="VBSCRIPT"
 
+Sub GetProductInertia(MeasuredProduct)
+    Dim PrincipalAxes(15)
+    Set ProductInertia = MeasuredProduct.ReferenceProduct.GetTechnologicalObject("Inertia")
+    ProductInertia.GetPrincipalAxes PrincipalAxes
+
+    For i = 0 To 14
+        MsgBox PrincipalAxes(i) & "  as: " & TypeName(PrincipalAxes(i))
+        Next
+
+End Sub
+
 Sub CATMain()
 
+    ' Set productDocument1 = CATIA.ActiveDocument
+    ' MsgBox productDocument1.Product.Products.Item(1).Name
+    ' GetProductInertia (productDocument1.Product.Products.Item(1))
+
+    ' Return
 
     Dim mainDirectory as String
     mainDirectory = "G:\CTS\junk\0Ufunc Testing\Project_Estimating"
@@ -40,6 +56,9 @@ Sub CATMain()
     iRow = 2
 
     Set oFolder = objFSO.GetFolder(mainDirectory)
+
+    Dim PrincipleAxis(8)
+
 
     For Each oFile in oFolder.Files
 
@@ -131,9 +150,12 @@ Sub CATMain()
 
             Dim partDocument1 As Document
 
-            Set partDocument1 = CATIA.ActiveDocument
+            Set partDocument1 = Get_PartDocument()
 
             Dim part1 As Part
+
+            Dim oPart As Part
+            Set oPart = partDocument1.Part
 
             Set part1 = partDocument1.Part
 
@@ -149,7 +171,111 @@ Sub CATMain()
 
             If F_Body = "Normal" Then
 
-                MsgBox  oSel.item(1).value.name
+                Dim COGArray
+                COGArray = Get_COG(partDocument1)
+
+                Dim oSPAWorkbench As SPAWorkbench
+                Dim oMeasureable As Measurable
+                Dim oInertias As Inertias
+                Dim oInertia 'As Inertia
+
+                Dim oHybridBodies As HybridBodies
+                Set oHybridBodies = oPart.HybridBodies
+
+                Set oSPAWorkbench = partDocument1.GetWorkbench("SPAWorkbench")
+                Set oInertias = oSPAWorkbench.Inertias
+
+                oInertias.Add partDocument1.Part
+                Set oInertia = oInertias.Item(1)
+                oInertia.GetPrincipalAxes PrincipleAxis
+                Dim oHybridBody
+                Set oHybridBody = oHybridBodies.Add
+                oHybridBody.Name = "Inertia_Bounding_Box"
+
+                Dim oHybridShapeFactory As HybridShapeFactory
+                Set oHybridShapeFactory = oPart.HybridShapeFactory
+
+                Dim oHybridshapePointCoord As HybridShapePointCoord
+                Set oHybridshapePointCoord = Build_COG(oHybridShapeFactory, COGArray)
+
+                Dim CoordPoint
+                CoordPoint = Calculate_Direction_Coords(PrincipleAxis)
+
+                Dim InertiaAxis(2) As Line
+
+                Set InertiaAxis(0) = Build_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, CoordPoint, 1)
+                Set InertiaAxis(1) = Build_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, CoordPoint, 2)
+                Set InertiaAxis(2) = Build_ThirdDirection_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, InertiaAxis(0), InertiaAxis(1))
+
+                Dim oExtremum(5) As HybridShapeExtremum
+                Set oExtremum(0) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(0), InertiaAxis(1), InertiaAxis(2))
+                Set oExtremum(1) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(0), InertiaAxis(1), InertiaAxis(2))
+                Set oExtremum(2) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(1), InertiaAxis(2), InertiaAxis(0))
+                Set oExtremum(3) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(1), InertiaAxis(2), InertiaAxis(0))
+                Set oExtremum(4) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(2), InertiaAxis(0), InertiaAxis(1))
+                Set oExtremum(5) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(2), InertiaAxis(0), InertiaAxis(1))
+
+                Dim oPolyLine As HybridShapePolyline
+                Set oPolyLine = Build_PolyLine(oHybridShapeFactory, oExtremum)
+
+                Dim oFinalExtremums(5) As HybridShapeExtremum
+
+                Set oFinalExtremums(0) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(0))
+                Set oFinalExtremums(1) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(0))
+                Set oFinalExtremums(2) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(1))
+                Set oFinalExtremums(3) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(1))
+                Set oFinalExtremums(4) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(2))
+                Set oFinalExtremums(5) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(2))
+
+                Dim oFinalPlanes(5) As HybridShapePlaneNormal
+
+                Set oFinalPlanes(0) = Build_Planes(oHybridShapeFactory, oFinalExtremums(0), InertiaAxis(0))
+                Set oFinalPlanes(1) = Build_Planes(oHybridShapeFactory, oFinalExtremums(1), InertiaAxis(0))
+                Set oFinalPlanes(2) = Build_Planes(oHybridShapeFactory, oFinalExtremums(2), InertiaAxis(1))
+                Set oFinalPlanes(3) = Build_Planes(oHybridShapeFactory, oFinalExtremums(3), InertiaAxis(1))
+                Set oFinalPlanes(4) = Build_Planes(oHybridShapeFactory, oFinalExtremums(4), InertiaAxis(2))
+                Set oFinalPlanes(5) = Build_Planes(oHybridShapeFactory, oFinalExtremums(5), InertiaAxis(2))
+
+                Dim oBaseLine As HybridShapeLinePtDir
+                Set oBaseLine = Build_LinePtDir(oHybridShapeFactory, oHybridshapePointCoord, oFinalPlanes(0), oFinalPlanes(1))
+
+                Dim oExtrudedSurface As HybridShapeExtrude
+                Set oExtrudedSurface = Build_ExtrudedSurface(oHybridShapeFactory, oBaseLine, oFinalPlanes(2), oFinalPlanes(3))
+
+                Dim oFinalBoundingBox As HybridShapeExtrude
+                Set oFinalBoundingBox = Build_ExtrudedSurface(oHybridShapeFactory, oExtrudedSurface, oFinalPlanes(4), oFinalPlanes(5))
+                oHybridBody.AppendHybridShape oFinalBoundingBox
+
+
+
+
+
+                ' Get_PrincipleAxis = PrincipleAxis
+
+                ' MsgBox  oSel.item(1).value.name
+
+                ' GetProductInertia(oSel.item(1).value)
+
+                ' Dim tempBody As Object
+                ' tempBody = oSel.item(1).value.HybridBodies.Add()
+
+                ' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+                ' theHSF = myBodyPart.HybridShapeFactory
+
+                ' MsgBox TypeName(theHSF)
+
+                ' Dim objProd As Product
+
+                ' Dim objInertia As Object
+
+                ' Set objProd = CATIA.ActiveDocument.Selection.Item2(1).Value
+                ' Set objInertia = GetProductInertia objProd
+                ' If Not (objInertia Is Nothing) Then
+                '     'Retrieve the mass just to show it worked
+                '     MsgBox objInertia.Mass
+                ' Else
+                '     MsgBox "The Inertia could not be retrieved!"
+                ' End If
 
                 CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
@@ -180,6 +306,106 @@ Sub CATMain()
 
 End Sub
 
+Sub Get_PartDocument() As PartDocument
+
+    Dim oCATIA As Application
+    Dim oDocument As Document
+    Dim oSelection As Selection
+    Dim oPart As Part
+
+    Set oCATIA = CATIA
+
+    On Error Resume Next
+
+    Set oDocument = CATIA.ActiveDocument
+
+    If Err.Number <> 0 Then
+
+        MsgBox "There Is No Active Document In The Current Session, Exitting Script."
+
+
+    End If
+
+    On Error GoTo 0
+
+    Set oSelection = oDocument.Selection
+    oSelection.Clear
+
+    '---------------------------------------------------'
+
+    If (InStr(oDocument.Name, ".CATPart")) = 0 Then
+
+        oSelection.Search ("type=Part,in")
+
+        On Error Resume Next
+
+        Set oPart = oSelection.FindObject("CATIAPart")
+
+        If Err.Number <> 0 Then
+
+            MsgBox "A Part or Part Instance Must be Active." & vbLf & "Exiting The Script"
+            oSelection.Clear
+
+            Return
+
+        End If
+
+        On Error GoTo 0
+
+    Else
+
+        Set oPart = oDocument.Part
+
+    End If
+
+    oSelection.Clear
+
+    '---------------------------------------------------'
+
+    Set Get_PartDocument = oPart.Parent
+
+    Set oPart = Nothing
+    Set oSelection = Nothing
+    Set oDocument = Nothing
+    Set oCATIA = Nothing
+
+End Sub
+
+Sub Get_COG(oPartDocument As PartDocument)
+
+    Dim oSPAWorkbench As SPAWorkbench
+    Dim oMeasureable As Measurable
+    Dim oInertias As Inertias
+    Dim oInertia 'As Inertia
+    Dim COGArray(2)
+
+    Set oSPAWorkbench = oPartDocument.GetWorkbench("SPAWorkbench")
+    Set oInertias = oSPAWorkbench.Inertias
+
+    oInertias.Add oPartDocument.Part.MainBody
+    Set oInertia = oInertias.Item(1)
+    oInertia.GetCOGPosition COGArray
+
+    Get_COG = COGArray
+
+    oInertias.Remove oInertia.Name
+
+    Set oInertia = Nothing
+    Set oInertias = Nothing
+    Set oMeasureable = Nothing
+    Set oSPAWorkbench = Nothing
+
+End Sub
+
+
+Sub Build_COG(oHybridShapeFactory As HybridShapeFactory, COGArray As Object) As HybridShapePointCoord
+
+    Set Build_COG = oHybridShapeFactory.AddNewPointCoord(COGArray(0) * 1000, COGArray(1) * 1000, COGArray(2) * 1000)
+    Build_COG.Compute
+    Build_COG.Name = "COG"
+
+End Sub
+
 Sub FillOut(myWorkSheet As Object, fileName As String, fileLeaf As String, iRow As Integer)
     myWorksheet.Cells(iRow, 18).RowHeight = 80
 
@@ -194,6 +420,121 @@ Sub FillOut(myWorkSheet As Object, fileName As String, fileLeaf As String, iRow 
     myWorksheet.Cells(iRow, 4).Value = fileLeaf
 End Sub
 
+Sub Calculate_Direction_Coords(PrincipleAxis)
+
+    Dim xxCos As Double
+    xxCos = ArcCOS(CDbl(PrincipleAxis(0)))
+    Dim xyCos As Double
+    xyCos = ArcCOS(CDbl(PrincipleAxis(3)))
+    Dim xzCos As Double
+    xzCos = ArcCOS(CDbl(PrincipleAxis(6)))
+
+    Dim xCoords(2) As Double
+    xCoords(0) = (100 * SinDeg(xzCos) * CosDeg(xxCos))
+    xCoords(1) = (100 * SinDeg(xzCos) * SinDeg(xxCos))
+    xCoords(2) = (100 * CosDeg(xzCos))
+
+    '-----------------------------------------------------
+
+    Dim yxCos As Double
+    yxCos = ArcCOS(CDbl(PrincipleAxis(1)))
+    Dim yyCos As Double
+    yyCos = ArcCOS(CDbl(PrincipleAxis(4)))
+    Dim yzCos As Double
+    yzCos = ArcCOS(CDbl(PrincipleAxis(7)))
+
+    Dim yCoords(2) As Double
+    yCoords(0) = (100 * SinDeg(yzCos) * CosDeg(yxCos))
+    yCoords(1) = (100 * SinDeg(yzCos) * SinDeg(yxCos))
+    yCoords(2) = (100 * CosDeg(yzCos))
+
+    '-----------------------------------------------------
+
+    Dim zxCos As Double
+    zxCos = ArcCOS(CDbl(PrincipleAxis(2)))
+    Dim zyCos As Double
+    zyCos = ArcCOS(CDbl(PrincipleAxis(5)))
+    Dim zzCos As Double
+    zzCos = ArcCOS(CDbl(PrincipleAxis(8)))
+
+    Dim zCoords(2) As Double
+    zCoords(0) = (100 * SinDeg(zzCos) * CosDeg(zxCos))
+    zCoords(1) = (100 * SinDeg(zzCos) * SinDeg(zxCos))
+    zCoords(2) = (100 * CosDeg(zzCos))
+
+    '-----------------------------------------------------
+
+    Dim PointCoordMatrix(8) As Double
+    PointCoordMatrix(0) = xCoords(0)
+    PointCoordMatrix(1) = xCoords(1)
+    PointCoordMatrix(2) = xCoords(2)
+    PointCoordMatrix(3) = yCoords(0)
+    PointCoordMatrix(4) = yCoords(1)
+    PointCoordMatrix(5) = yCoords(2)
+    PointCoordMatrix(6) = zCoords(0)
+    PointCoordMatrix(7) = zCoords(1)
+    PointCoordMatrix(8) = zCoords(2)
+
+    Calculate_Direction_Coords = PointCoordMatrix
+
+End Sub
+
+
+Sub SinDeg(x As Double) As Double
+
+    Const PI = 3.14159265359
+
+    Dim xRadian As Double
+    xRadian = x * (PI / 180)
+
+    SinDeg = Sin(xRadian)
+
+End Sub
+
+Sub CosDeg(x As Double) As Double
+
+    Const PI = 3.14159265359
+
+    Dim xRadian As Double
+    xRadian = x * (PI / 180)
+
+    CosDeg = Cos(xRadian)
+
+End Sub
+
+Sub ArcCOS(x As Double) As Double
+
+    Const PI = 3.14159265359
+
+    Select Case x
+     Case 0
+        ArcCOS = 90
+     Case 1
+        ArcCOS = 0
+     Case -1
+        ArcCOS = 180
+     Case Else
+        ArcCOS = (Atn(-x / Sqr(-x * x + 1)) + 2 * Atn(1)) * (180 / PI)
+    End Select
+End Sub
+
+' Sub GetProductInertia(iProd As Product) As Inertia
+
+    '     'If successful, this function will return an inertia object
+    '     'Otherwise, Nothing is returned (you should check the return value)
+
+    '     Dim objInertia As Inertia
+
+    '     On Error Resume Next
+
+    '     Set objInertia = iProd.ReferenceProduct.GetTechnologicalObject("Inertia")
+    '     If Err.Number = 0 Then
+    '         Set GetProductInertia = objInertia
+    '     Else
+    '         Set GetProductInertia = Nothing
+    '     End If
+
+    ' End Sub
 
 Sub AddPicture(myExcel As Object, photosPath As String, iRow As int)
 
@@ -205,4 +546,32 @@ Sub AddPicture(myExcel As Object, photosPath As String, iRow As int)
     End With
 
 End Sub
+
+Sub Get_PrincipleAxis(oPartDocument As PartDocument)
+
+    Dim oSPAWorkbench As SPAWorkbench
+    Dim oMeasureable As Measurable
+    Dim oInertias As Inertias
+    Dim oInertia 'As Inertia
+    Dim PrincipleAxis(8)
+
+    Set oSPAWorkbench = oPartDocument.GetWorkbench("SPAWorkbench")
+    Set oInertias = oSPAWorkbench.Inertias
+
+    oInertias.Add oPartDocument.Part
+    Set oInertia = oInertias.Item(1)
+    oInertia.GetPrincipalAxes PrincipleAxis
+
+    Get_PrincipleAxis = PrincipleAxis
+
+    oInertias.Remove oInertia.Name
+
+    Set oInertia = Nothing
+    Set oInertias = Nothing
+    Set oMeasureable = Nothing
+    Set oSPAWorkbench = Nothing
+
+End Sub
+
+
 ' 222
