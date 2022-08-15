@@ -22,6 +22,9 @@ Sub CATMain()
     objFSO.CreateFolder(photosDirectory)
     objFSO.CopyFile "C:\Catia\Project_Estimating\CAD Info.xlsx", mainDirectory & "\CAD Info.xlsx"
 
+    Dim Filter(0)
+
+    Filter(0)="Body"
 
     Dim myExcel As Microsoft.Office.Interop.Excel.Application
 
@@ -79,6 +82,11 @@ Sub CATMain()
         Dim translateCatPath As String
         translateCatPath = translateDirectory & "\" & fileLeaf & ".catpart"
 
+        Dim associatedFile0 As String
+        Dim associatedFile1 As String
+        Dim associatedFile2 As String
+        associatedFile0 = dataPath
+
         If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Then
 
             CATIA.Documents.Open(dataPath)
@@ -95,11 +103,18 @@ Sub CATMain()
 
             CATIA.ActiveDocument.ExportData translateStpPath, "stp"
 
+            associatedFile1 = translateIgsPath
+            associatedFile2 = translateStpPath
+
+
          Case ".stp"
 
             CATIA.ActiveDocument.SaveAs translateCatPath
 
             CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
+
+            associatedFile1 = translateCatPath
+            associatedFile2 = translateIgsPath
 
          Case ".igs"
 
@@ -107,21 +122,54 @@ Sub CATMain()
 
             CATIA.ActiveDocument.ExportData translateStpPath, "stp"
 
+            associatedFile1 = translateCatPath
+            associatedFile2 = translateStpPath
+
         End Select
 
         If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Then
 
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
+            Dim partDocument1 As Document
+
+            Set partDocument1 = CATIA.ActiveDocument
+
+            Dim part1 As Part
+
+            Set part1 = partDocument1.Part
+
+            Dim oSel as Selection
+
+            Set oSel = partDocument1.selection
+
+            oSel.Clear()
+
+            Dim F_Body as object
+
+            F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
+
+            If F_Body = "Normal" Then
+
+                MsgBox  oSel.item(1).value.name
+
+                CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
+
+                objFSO.MoveFile oFile, suppliedDataPath
+
+                FillOut myWorksheet, fileName, fileLeaf, iRow
+
+                AddPicture myExcel, photosPath, iRow
+
+                iRow = iRow + 1
+
+            Else
+
+                objFSO.DeleteFile(associatedFile0)
+                objFSO.DeleteFile(associatedFile1)
+                objFSO.DeleteFile(associatedFile2)
+
+            End If
 
             CATIA.ActiveWindow.Close()
-
-            objFSO.MoveFile oFile, suppliedDataPath
-
-            FillOut myWorksheet, fileName, fileLeaf, iRow
-
-            AddPicture myExcel, photosPath, iRow
-
-            iRow = iRow + 1
         End If
 
         Next
