@@ -31,7 +31,7 @@ Sub CATMain()
 
     Set myWorksheet = myExcel.Workbooks.Item(1).ActiveSheet
 
-    myWorksheet.Columns("B:B").ColumnWidth = 20
+    myExcel.Workbooks.Item(1).ActiveSheet.Columns("B:B").ColumnWidth = 20
 
     Dim iRow As Integer
     iRow = 2
@@ -79,107 +79,50 @@ Sub CATMain()
         Dim translateCatPath As String
         translateCatPath = translateDirectory & "\" & fileLeaf & ".catpart"
 
-        Select Case dataExtension
-         Case ".catpart"
+        If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Then
+
             CATIA.Documents.Open(dataPath)
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
+        End If
+
+        Select Case dataExtension
+
+         Case ".catpart"
+
             CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
 
             CATIA.ActiveDocument.ExportData translateStpPath, "stp"
-
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
-
-            CATIA.ActiveWindow.Close()
-
-            objFSO.MoveFile oFile, suppliedDataPath
-
-            myWorksheet.Cells(iRow, 18).RowHeight = 80
-
-            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 1).Value = iRow - 1
-
-            myWorksheet.Cells(iRow, 3).Value = fileName
-
-            myWorksheet.Cells(iRow, 4).Value = fileLeaf
-
-            AddPicture myExcel, photosPath, iRow
-
-            iRow = iRow + 1
 
          Case ".stp"
-            CATIA.Documents.Open(dataPath)
-
-            CATIA.ActiveWindow.ActiveViewer.Reframe
 
             CATIA.ActiveDocument.SaveAs translateCatPath
-
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
             CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
 
-            CATIA.ActiveWindow.Close()
-
-            objFSO.MoveFile oFile, suppliedDataPath
-
-            myWorksheet.Cells(iRow, 18).RowHeight = 80
-
-            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 1).Value = iRow - 1
-
-            myWorksheet.Cells(iRow, 3).Value = fileName
-
-            myWorksheet.Cells(iRow, 4).Value = fileLeaf
-
-            AddPicture myExcel, photosPath, iRow
-
-            iRow = iRow + 1
-
          Case ".igs"
-            CATIA.Documents.Open(dataPath)
-
-            CATIA.ActiveWindow.ActiveViewer.Reframe
 
             CATIA.ActiveDocument.SaveAs translateCatPath
 
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
-
             CATIA.ActiveDocument.ExportData translateStpPath, "stp"
+
+        End Select
+
+        If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Then
+
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
             CATIA.ActiveWindow.Close()
 
             objFSO.MoveFile oFile, suppliedDataPath
 
-            myWorksheet.Cells(iRow, 18).RowHeight = 80
-
-            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 1).Value = iRow - 1
-
-            myWorksheet.Cells(iRow, 3).Value = fileName
-
-            myWorksheet.Cells(iRow, 4).Value = fileLeaf
+            FillOut myWorksheet, fileName, fileLeaf, iRow
 
             AddPicture myExcel, photosPath, iRow
 
             iRow = iRow + 1
-
-         Case ".xlsx"
-
-         Case Else
-
-            MsgBox "Unknown extension: '" & dataExtension & "'"
-
-        End Select
+        End If
 
         Next
 
@@ -187,14 +130,24 @@ Sub CATMain()
         myExcel.Quit()
         myExcel.Quit()
 
-
-
 End Sub
 
-Sub FillOut
+Sub FillOut(myWorkSheet As Object, fileName As String, fileLeaf As String, iRow As Integer)
+    myWorksheet.Cells(iRow, 18).RowHeight = 80
+
+    myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+    myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+    myWorksheet.Cells(iRow, 1).Value = iRow - 1
+
+    myWorksheet.Cells(iRow, 3).Value = fileName
+
+    myWorksheet.Cells(iRow, 4).Value = fileLeaf
+End Sub
 
 
-Sub AddPicture(myExcel As Microsoft.Office.Interop.Excel.Application, photosPath As String, iRow As int)
+Sub AddPicture(myExcel As Object, photosPath As String, iRow As int)
 
     Set oPicture = myExcel.ActiveSheet.Shapes.AddPicture(photosPath, False, True, 1, 1, 100, 75)
     With oPicture
