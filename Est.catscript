@@ -1,6 +1,8 @@
 Language="VBSCRIPT"
 
 Sub CATMain()
+
+
     Dim mainDirectory as String
     mainDirectory = "G:\CTS\junk\0Ufunc Testing\Project_Estimating"
 
@@ -13,10 +15,6 @@ Sub CATMain()
     Dim photosDirectory As String
     photosDirectory = mainDirectory & "\Photos"
 
-
-    ' FileSystemObject.CopyFile "C:\Catia\Project_Estimating\CAD Info.xlsx", mainDirectory & "\CAD Info.xlsx"
-
-
     Set objFSO = Createobject("Scripting.FileSystemObject")
 
     objFSO.CreateFolder(translateDirectory)
@@ -28,18 +26,18 @@ Sub CATMain()
     Dim myExcel As Microsoft.Office.Interop.Excel.Application
 
     Set myExcel = CreateObject("Excel.Application")
+
     myExcel.Workbooks.Open(mainDirectory & "\CAD Info.xlsx")
-    Dim myWorkbook As Microsoft.Office.Interop.Excel.Workbook
-    Set myWorkbook = myExcel.Workbooks.Item(1)
-    myWorkbook.Activate()
-    myWorkbook.Sheets(1).Select()
-    Set myWorksheet = myWorkbook.ActiveSheet
+
+    Set myWorksheet = myExcel.Workbooks.Item(1).ActiveSheet
+
     myWorksheet.Columns("B:B").ColumnWidth = 20
-    'myExcel.Visible = True
+
     Dim iRow As Integer
     iRow = 2
 
     Set oFolder = objFSO.GetFolder(mainDirectory)
+
     For Each oFile in oFolder.Files
 
         Dim dataPath As String
@@ -66,100 +64,144 @@ Sub CATMain()
         Dim stpPath As String
         stpPath = mainDirectory & "\" & fileLeaf & ".stp"
 
+        Dim photosPath As String
+        photosPath = photosDirectory & "\" & fileLeaf & ".bmp"
+
+        Dim suppliedDataPath As String
+        suppliedDataPath = suppliedDirectory & "\" & fileLeaf & dataExtension
+
+        Dim translateIgsPath As String
+        translateIgsPath = translateDirectory & "\" & fileLeaf & ".igs"
+
+        Dim translateStpPath As String
+        translateStpPath = translateDirectory & "\" & fileLeaf & ".stp"
+
+        Dim translateCatPath As String
+        translateCatPath = translateDirectory & "\" & fileLeaf & ".catpart"
+
         Select Case dataExtension
          Case ".catpart"
             CATIA.Documents.Open(dataPath)
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
-            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".igs", "igs"
+            CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
 
-            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".stp", "stp"
+            CATIA.ActiveDocument.ExportData translateStpPath, "stp"
 
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosDirectory & "\" & fileLeaf & ".bmp"
-
-            myWorksheet.Cells(iRow, 18).RowHeight = 80
-
-            myWorksheet.Cells(iRow, 18).Value  = fileLeaf & ".bmp"
-
-
-            ' Dim mainBody As Body
-            ' Set mainBody = CATIA.ActiveDocument.Part.MainBody
-
-            ' ' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
-            ' ' theHSF = mainBody.HybridShapeFactory
-
-            ' ' Dim body As Body
-            ' ' Set body = CATIA.ActiveDocument.Part.Bodies.MainBody
-            ' Dim hybridBodyColl As HybridBodies
-            ' hybridBodyColl = mainBody.HybridBodies
-
-            ' MsgBox "hello" & hybridBodyColl.Count
-
-
-
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
             CATIA.ActiveWindow.Close()
 
-            objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
+            objFSO.MoveFile oFile, suppliedDataPath
+
+            myWorksheet.Cells(iRow, 18).RowHeight = 80
+
+            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+            myWorksheet.Cells(iRow, 1).Value = iRow - 1
+
+            myWorksheet.Cells(iRow, 3).Value = fileName
+
+            myWorksheet.Cells(iRow, 4).Value = fileLeaf
+
+            AddPicture myExcel, photosPath, iRow
 
             iRow = iRow + 1
+
          Case ".stp"
             CATIA.Documents.Open(dataPath)
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
-            CATIA.ActiveDocument.SaveAs translateDirectory & "\" & fileLeaf & ".catpart"
+            CATIA.ActiveDocument.SaveAs translateCatPath
 
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosDirectory & "\" & fileLeaf & ".bmp"
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
-            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".igs", "igs"
+            CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
 
             CATIA.ActiveWindow.Close()
 
-            objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
+            objFSO.MoveFile oFile, suppliedDataPath
 
             myWorksheet.Cells(iRow, 18).RowHeight = 80
 
-            myWorksheet.Cells(iRow, 18).Value  = fileLeaf & ".bmp"
+            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+            myWorksheet.Cells(iRow, 1).Value = iRow - 1
+
+            myWorksheet.Cells(iRow, 3).Value = fileName
+
+            myWorksheet.Cells(iRow, 4).Value = fileLeaf
+
+            AddPicture myExcel, photosPath, iRow
 
             iRow = iRow + 1
-
-
 
          Case ".igs"
             CATIA.Documents.Open(dataPath)
 
             CATIA.ActiveWindow.ActiveViewer.Reframe
 
-            CATIA.ActiveDocument.SaveAs translateDirectory & "\" & fileLeaf & ".catpart"
+            CATIA.ActiveDocument.SaveAs translateCatPath
 
-            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosDirectory & "\" & fileLeaf & ".bmp"
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
-            CATIA.ActiveDocument.ExportData translateDirectory & "\" & fileLeaf & ".stp", "stp"
+            CATIA.ActiveDocument.ExportData translateStpPath, "stp"
 
             CATIA.ActiveWindow.Close()
 
-            objFSO.MoveFile oFile, suppliedDirectory & "\" & fileLeaf & dataExtension
+            objFSO.MoveFile oFile, suppliedDataPath
 
             myWorksheet.Cells(iRow, 18).RowHeight = 80
 
-            myWorksheet.Cells(iRow, 18).Value  = fileLeaf & ".bmp"
+            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+            myWorksheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+            myWorksheet.Cells(iRow, 1).Value = iRow - 1
+
+            myWorksheet.Cells(iRow, 3).Value = fileName
+
+            myWorksheet.Cells(iRow, 4).Value = fileLeaf
+
+            AddPicture myExcel, photosPath, iRow
 
             iRow = iRow + 1
 
+         Case ".xlsx"
 
          Case Else
+
             MsgBox "Unknown extension: '" & dataExtension & "'"
 
         End Select
 
-
         Next
 
+        myExcel.Workbooks.Item(1).Save()
+        myExcel.Quit()
+        myExcel.Quit()
 
-        myWorkbook.Save()
-        myExcel.Quit()
-        myExcel.Quit()
+
 
 End Sub
+
+Sub FillOut
+
+
+Sub AddPicture(myExcel As Microsoft.Office.Interop.Excel.Application, photosPath As String, iRow As int)
+
+    Set oPicture = myExcel.ActiveSheet.Shapes.AddPicture(photosPath, False, True, 1, 1, 100, 75)
+    With oPicture
+        .Left = myExcel.ActiveSheet.Cells(iRow, 2).Left
+        .Top = myExcel.ActiveSheet.Cells(iRow, 2).Top
+        .Placement = 1
+    End With
+
+End Sub
+' 222
