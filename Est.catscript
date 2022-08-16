@@ -13,14 +13,16 @@ End Sub
 
 Sub CATMain()
 
-    ' Set productDocument1 = CATIA.ActiveDocument
-    ' MsgBox productDocument1.Product.Products.Item(1).Name
-    ' GetProductInertia (productDocument1.Product.Products.Item(1))
 
-    ' Return
+
+    CATIA.DisplayFileAlerts = False
 
     Dim mainDirectory as String
-    mainDirectory = "G:\CTS\junk\0Ufunc Testing\Project_Estimating"
+    mainDirectory = "C:\Estimating\Project_Estimating"
+
+    Set objFSO = Createobject("Scripting.FileSystemObject")
+
+
 
     Dim translateDirectory As String
     translateDirectory = mainDirectory & "\TSG - Translated Data"
@@ -31,7 +33,7 @@ Sub CATMain()
     Dim photosDirectory As String
     photosDirectory = mainDirectory & "\Photos"
 
-    Set objFSO = Createobject("Scripting.FileSystemObject")
+
 
     objFSO.CreateFolder(translateDirectory)
     objFSO.CreateFolder(suppliedDirectory)
@@ -101,12 +103,12 @@ Sub CATMain()
         Dim translateCatPath As String
         translateCatPath = translateDirectory & "\" & fileLeaf & ".catpart"
 
-        Dim associatedFile0 As String
-        Dim associatedFile1 As String
-        Dim associatedFile2 As String
-        associatedFile0 = dataPath
 
-        If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Then
+        Dim catDest As String
+        Dim stpDest As String
+        Dim igsDest As String
+
+        If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp"  Then
 
             CATIA.Documents.Open(dataPath)
 
@@ -114,186 +116,84 @@ Sub CATMain()
 
         End If
 
-        Select Case dataExtension
+        If dataExtension = ".stp" Then
 
-         Case ".catpart"
+            CATIA.ActiveDocument.SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
 
-            CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
+            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".igs", "igs"
 
-            CATIA.ActiveDocument.ExportData translateStpPath, "stp"
+            stpDest = suppliedDataPath
 
-            associatedFile1 = translateIgsPath
-            associatedFile2 = translateStpPath
+            catDest = translateCatPath
 
+            igsDest = translateIgsPath
 
-         Case ".stp"
+        End If
 
-            CATIA.ActiveDocument.SaveAs translateCatPath
+        If dataExtension = ".igs" Then
 
-            CATIA.ActiveDocument.ExportData translateIgsPath, "igs"
+            CATIA.ActiveDocument.SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
 
-            associatedFile1 = translateCatPath
-            associatedFile2 = translateIgsPath
+            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
 
-         Case ".igs"
+            stpDest = translateStpPath
 
-            CATIA.ActiveDocument.SaveAs translateCatPath
+            catDest = translateCatPath
 
-            CATIA.ActiveDocument.ExportData translateStpPath, "stp"
+            igsDest = suppliedDataPath
 
-            associatedFile1 = translateCatPath
-            associatedFile2 = translateStpPath
+        End If
 
-        End Select
+        If dataExtension = ".catpart" Then
+
+            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".igs" , "igs"
+
+            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
+
+            stpDest = translateStpPath
+
+            catDest = suppliedDataPath
+
+            igsDest = translateIgsPath
+
+        End If
 
         If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Then
 
-            Dim partDocument1 As Document
+            ' Dim oSel as Selection
+            ' Set oSel = CATIA.ActiveDocument.selection
 
-            Set partDocument1 = Get_PartDocument()
+            ' oSel.Clear()
 
-            Dim part1 As Part
+            ' Dim F_Body as object
 
-            Dim oPart As Part
-            Set oPart = partDocument1.Part
+            ' F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
 
-            Set part1 = partDocument1.Part
+            ' If F_Body = "Normal" Then
 
-            Dim oSel as Selection
+            CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
 
-            Set oSel = partDocument1.selection
+            ' objFSO.MoveFile oFile, suppliedDataPath
 
-            oSel.Clear()
+            FillOut myWorksheet, fileName, fileLeaf, iRow
 
-            Dim F_Body as object
+            AddPicture myExcel, photosPath, iRow
 
-            F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
+            iRow = iRow + 1
 
-            If F_Body = "Normal" Then
-
-                Dim COGArray
-                COGArray = Get_COG(partDocument1)
-
-                Dim oSPAWorkbench As SPAWorkbench
-                Dim oMeasureable As Measurable
-                Dim oInertias As Inertias
-                Dim oInertia 'As Inertia
-
-                Dim oHybridBodies As HybridBodies
-                Set oHybridBodies = oPart.HybridBodies
-
-                Set oSPAWorkbench = partDocument1.GetWorkbench("SPAWorkbench")
-                Set oInertias = oSPAWorkbench.Inertias
-
-                oInertias.Add partDocument1.Part
-                Set oInertia = oInertias.Item(1)
-                oInertia.GetPrincipalAxes PrincipleAxis
-                Dim oHybridBody
-                Set oHybridBody = oHybridBodies.Add
-                oHybridBody.Name = "Inertia_Bounding_Box"
-
-                Dim oHybridShapeFactory As HybridShapeFactory
-                Set oHybridShapeFactory = oPart.HybridShapeFactory
-
-                Dim oHybridshapePointCoord As HybridShapePointCoord
-                Set oHybridshapePointCoord = Build_COG(oHybridShapeFactory, COGArray)
-
-                Dim CoordPoint
-                CoordPoint = Calculate_Direction_Coords(PrincipleAxis)
-
-                Dim InertiaAxis(2) As Line
-
-                Set InertiaAxis(0) = Build_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, CoordPoint, 1)
-                Set InertiaAxis(1) = Build_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, CoordPoint, 2)
-                Set InertiaAxis(2) = Build_ThirdDirection_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, InertiaAxis(0), InertiaAxis(1))
-
-                Dim oExtremum(5) As HybridShapeExtremum
-                Set oExtremum(0) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(0), InertiaAxis(1), InertiaAxis(2))
-                Set oExtremum(1) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(0), InertiaAxis(1), InertiaAxis(2))
-                Set oExtremum(2) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(1), InertiaAxis(2), InertiaAxis(0))
-                Set oExtremum(3) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(1), InertiaAxis(2), InertiaAxis(0))
-                Set oExtremum(4) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(2), InertiaAxis(0), InertiaAxis(1))
-                Set oExtremum(5) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(2), InertiaAxis(0), InertiaAxis(1))
-
-                Dim oPolyLine As HybridShapePolyline
-                Set oPolyLine = Build_PolyLine(oHybridShapeFactory, oExtremum)
-
-                Dim oFinalExtremums(5) As HybridShapeExtremum
-
-                Set oFinalExtremums(0) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(0))
-                Set oFinalExtremums(1) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(0))
-                Set oFinalExtremums(2) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(1))
-                Set oFinalExtremums(3) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(1))
-                Set oFinalExtremums(4) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(2))
-                Set oFinalExtremums(5) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(2))
-
-                Dim oFinalPlanes(5) As HybridShapePlaneNormal
-
-                Set oFinalPlanes(0) = Build_Planes(oHybridShapeFactory, oFinalExtremums(0), InertiaAxis(0))
-                Set oFinalPlanes(1) = Build_Planes(oHybridShapeFactory, oFinalExtremums(1), InertiaAxis(0))
-                Set oFinalPlanes(2) = Build_Planes(oHybridShapeFactory, oFinalExtremums(2), InertiaAxis(1))
-                Set oFinalPlanes(3) = Build_Planes(oHybridShapeFactory, oFinalExtremums(3), InertiaAxis(1))
-                Set oFinalPlanes(4) = Build_Planes(oHybridShapeFactory, oFinalExtremums(4), InertiaAxis(2))
-                Set oFinalPlanes(5) = Build_Planes(oHybridShapeFactory, oFinalExtremums(5), InertiaAxis(2))
-
-                Dim oBaseLine As HybridShapeLinePtDir
-                Set oBaseLine = Build_LinePtDir(oHybridShapeFactory, oHybridshapePointCoord, oFinalPlanes(0), oFinalPlanes(1))
-
-                Dim oExtrudedSurface As HybridShapeExtrude
-                Set oExtrudedSurface = Build_ExtrudedSurface(oHybridShapeFactory, oBaseLine, oFinalPlanes(2), oFinalPlanes(3))
-
-                Dim oFinalBoundingBox As HybridShapeExtrude
-                Set oFinalBoundingBox = Build_ExtrudedSurface(oHybridShapeFactory, oExtrudedSurface, oFinalPlanes(4), oFinalPlanes(5))
-                oHybridBody.AppendHybridShape oFinalBoundingBox
-
-
-
-
-
-                ' Get_PrincipleAxis = PrincipleAxis
-
-                ' MsgBox  oSel.item(1).value.name
-
-                ' GetProductInertia(oSel.item(1).value)
-
-                ' Dim tempBody As Object
-                ' tempBody = oSel.item(1).value.HybridBodies.Add()
-
-                ' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
-                ' theHSF = myBodyPart.HybridShapeFactory
-
-                ' MsgBox TypeName(theHSF)
-
-                ' Dim objProd As Product
-
-                ' Dim objInertia As Object
-
-                ' Set objProd = CATIA.ActiveDocument.Selection.Item2(1).Value
-                ' Set objInertia = GetProductInertia objProd
-                ' If Not (objInertia Is Nothing) Then
-                '     'Retrieve the mass just to show it worked
-                '     MsgBox objInertia.Mass
-                ' Else
-                '     MsgBox "The Inertia could not be retrieved!"
-                ' End If
-
-                CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
-
-                objFSO.MoveFile oFile, suppliedDataPath
-
-                FillOut myWorksheet, fileName, fileLeaf, iRow
-
-                AddPicture myExcel, photosPath, iRow
-
-                iRow = iRow + 1
-
-            Else
-
-                objFSO.DeleteFile(associatedFile0)
-                objFSO.DeleteFile(associatedFile1)
-                objFSO.DeleteFile(associatedFile2)
-
+            If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".stp") Then
+                objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".stp", stpDest
             End If
+
+            If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".catpart") Then
+                objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".catpart", catDest
+            End If
+
+            If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".igs") Then
+                objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".igs", igsDest
+            End If
+
+            ' End If
 
             CATIA.ActiveWindow.Close()
         End If
@@ -322,7 +222,6 @@ Sub Get_PartDocument() As PartDocument
     If Err.Number <> 0 Then
 
         MsgBox "There Is No Active Document In The Current Session, Exitting Script."
-
 
     End If
 
@@ -575,3 +474,113 @@ End Sub
 
 
 ' 222
+
+
+
+
+
+' Dim COGArray
+' COGArray = Get_COG(partDocument1)
+
+' Dim oSPAWorkbench As SPAWorkbench
+' Dim oMeasureable As Measurable
+' Dim oInertias As Inertias
+' Dim oInertia 'As Inertia
+
+' Dim oHybridBodies As HybridBodies
+' Set oHybridBodies = oPart.HybridBodies
+
+' Set oSPAWorkbench = partDocument1.GetWorkbench("SPAWorkbench")
+' Set oInertias = oSPAWorkbench.Inertias
+
+' oInertias.Add partDocument1.Part
+' Set oInertia = oInertias.Item(1)
+' oInertia.GetPrincipalAxes PrincipleAxis
+' Dim oHybridBody
+' Set oHybridBody = oHybridBodies.Add
+' oHybridBody.Name = "Inertia_Bounding_Box"
+
+' Dim oHybridShapeFactory As HybridShapeFactory
+' Set oHybridShapeFactory = oPart.HybridShapeFactory
+
+' Dim oHybridshapePointCoord As HybridShapePointCoord
+' Set oHybridshapePointCoord = Build_COG(oHybridShapeFactory, COGArray)
+
+' Dim CoordPoint
+' CoordPoint = Calculate_Direction_Coords(PrincipleAxis)
+
+' Dim InertiaAxis(2) As Line
+
+' Set InertiaAxis(0) = Build_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, CoordPoint, 1)
+' Set InertiaAxis(1) = Build_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, CoordPoint, 2)
+' Set InertiaAxis(2) = Build_ThirdDirection_InertiaAxis(oHybridShapeFactory, oHybridshapePointCoord, InertiaAxis(0), InertiaAxis(1))
+
+' Dim oExtremum(5) As HybridShapeExtremum
+' Set oExtremum(0) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(0), InertiaAxis(1), InertiaAxis(2))
+' Set oExtremum(1) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(0), InertiaAxis(1), InertiaAxis(2))
+' Set oExtremum(2) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(1), InertiaAxis(2), InertiaAxis(0))
+' Set oExtremum(3) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(1), InertiaAxis(2), InertiaAxis(0))
+' Set oExtremum(4) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 1, InertiaAxis(2), InertiaAxis(0), InertiaAxis(1))
+' Set oExtremum(5) = Build_Extremums(oPart.MainBody, oPart, oHybridShapeFactory, 0, InertiaAxis(2), InertiaAxis(0), InertiaAxis(1))
+
+' Dim oPolyLine As HybridShapePolyline
+' Set oPolyLine = Build_PolyLine(oHybridShapeFactory, oExtremum)
+
+' Dim oFinalExtremums(5) As HybridShapeExtremum
+
+' Set oFinalExtremums(0) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(0))
+' Set oFinalExtremums(1) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(0))
+' Set oFinalExtremums(2) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(1))
+' Set oFinalExtremums(3) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(1))
+' Set oFinalExtremums(4) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 1, InertiaAxis(2))
+' Set oFinalExtremums(5) = Build_Extremums(oPolyLine, oPart, oHybridShapeFactory, 0, InertiaAxis(2))
+
+' Dim oFinalPlanes(5) As HybridShapePlaneNormal
+
+' Set oFinalPlanes(0) = Build_Planes(oHybridShapeFactory, oFinalExtremums(0), InertiaAxis(0))
+' Set oFinalPlanes(1) = Build_Planes(oHybridShapeFactory, oFinalExtremums(1), InertiaAxis(0))
+' Set oFinalPlanes(2) = Build_Planes(oHybridShapeFactory, oFinalExtremums(2), InertiaAxis(1))
+' Set oFinalPlanes(3) = Build_Planes(oHybridShapeFactory, oFinalExtremums(3), InertiaAxis(1))
+' Set oFinalPlanes(4) = Build_Planes(oHybridShapeFactory, oFinalExtremums(4), InertiaAxis(2))
+' Set oFinalPlanes(5) = Build_Planes(oHybridShapeFactory, oFinalExtremums(5), InertiaAxis(2))
+
+' Dim oBaseLine As HybridShapeLinePtDir
+' Set oBaseLine = Build_LinePtDir(oHybridShapeFactory, oHybridshapePointCoord, oFinalPlanes(0), oFinalPlanes(1))
+
+' Dim oExtrudedSurface As HybridShapeExtrude
+' Set oExtrudedSurface = Build_ExtrudedSurface(oHybridShapeFactory, oBaseLine, oFinalPlanes(2), oFinalPlanes(3))
+
+' Dim oFinalBoundingBox As HybridShapeExtrude
+' Set oFinalBoundingBox = Build_ExtrudedSurface(oHybridShapeFactory, oExtrudedSurface, oFinalPlanes(4), oFinalPlanes(5))
+' oHybridBody.AppendHybridShape oFinalBoundingBox
+
+
+
+
+
+' Get_PrincipleAxis = PrincipleAxis
+
+' MsgBox  oSel.item(1).value.name
+
+' GetProductInertia(oSel.item(1).value)
+
+' Dim tempBody As Object
+' tempBody = oSel.item(1).value.HybridBodies.Add()
+
+' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+' theHSF = myBodyPart.HybridShapeFactory
+
+' MsgBox TypeName(theHSF)
+
+' Dim objProd As Product
+
+' Dim objInertia As Object
+
+' Set objProd = CATIA.ActiveDocument.Selection.Item2(1).Value
+' Set objInertia = GetProductInertia objProd
+' If Not (objInertia Is Nothing) Then
+'     'Retrieve the mass just to show it worked
+'     MsgBox objInertia.Mass
+' Else
+'     MsgBox "The Inertia could not be retrieved!"
+' End If
