@@ -13,7 +13,6 @@ End Sub
 
 Dim mainDirectory as String
 
-Dim dataPath As String
 
 Dim fileName as String
 Dim dotIndex As Integer
@@ -39,32 +38,11 @@ Dim photosDirectory As String
 Dim iRow As Integer
 Dim objFSO As Object
 Dim oFolder As Object
-Dim Filter(1)
-Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
-Dim theObjectRef As Object
-Dim mins(2) As Object
-Dim maxs(2) As Object
-Dim originCoord(2) As Object
-Dim XAxisCoord(2) As Object
-Dim YAxisCoord(2) As Object
-Dim ZAxisCoord(2) As Object
-Dim aPoint As Object
-Dim theEXRef As Object
-Dim dCoords(2) As Object
-Dim dResult(2) As Object
-Dim ii, j As Short
-Dim theXDir As Object
-Dim theyDir As Object
-Dim theZDir As Object
-Dim theExtremums(5)
-Dim body As body
 
 
 Sub CATMain()
 
-    MsgBox TypeName(CATIA.ActiveDocument)
 
-    Return
 
     CATIA.DisplayFileAlerts = False
 
@@ -113,11 +91,68 @@ Sub CATMain()
     myExcel.Quit()
     myExcel.Quit()
 
+
 End Sub
 
 Sub Process()
-    For Each oFile in oFolder.Files
 
+    Dim Filter(1)
+    Dim mins(2) As Object
+    Dim maxs(2) As Object
+
+    Dim aPoint As Object
+    Dim theEXRef As Object
+    Dim dCoords(2) As Object
+    Dim dResult(2) As Object
+    Dim ii, j As Short
+    Dim theXDir As Object
+    Dim theyDir As Object
+    Dim theZDir As Object
+    Dim theExtremums(5)
+    Dim body As body
+    Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+    Dim theObjectRef As Object
+
+
+
+    Dim dataPath As String
+
+    Dim originCoord(2) As Object
+    Dim XAxisCoord(2) As Object
+    Dim YAxisCoord(2) As Object
+    Dim ZAxisCoord(2) As Object
+    Dim selectedObject As Object
+
+    ' Initialize the mins,maxs to impossible values
+    mins(0) = 100000
+    mins(1) = 100000
+    mins(2) = 100000
+    maxs(0) = -100000
+    maxs(1) = -100000
+    maxs(2) = -100000
+
+    ' Evalute the Axis System Directions
+    originCoord(0) = 0
+    originCoord(1) = 0
+    originCoord(2) = 0
+
+    XAxisCoord(0) = 1
+    XAxisCoord(1) = 0
+    XAxisCoord(2) = 0
+
+    YAxisCoord(0) = 0
+    YAxisCoord(1) = 1
+    YAxisCoord(2) = 0
+
+    ZAxisCoord(0) = 0
+    ZAxisCoord(1) = 0
+    ZAxisCoord(2) = 1
+
+
+    Filter(0)="Body"
+    Filter(1)="HybridBody"
+
+    For Each oFile in oFolder.Files
 
         dataPath = oFile
 
@@ -154,9 +189,6 @@ Sub Process()
         translateStpPath = translateDirectory & "\" & fileLeaf & ".stp"
 
         translateCatPath = translateDirectory & "\" & fileLeaf & ".catpart"
-
-
-
 
         If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Or dataExtension = ".step"  Then
 
@@ -210,34 +242,13 @@ Sub Process()
 
         If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Or dataExtension = ".step" Then
 
-
-            ' myProductDoc =
-            ' MsgBox CATIA.ActiveDocument.name
-            ' myPart = myProductDoc.Part
-            ' myPart.Update()
-
-            ' For i = 0 To myPart.Bodies.Count
-            '     MsgBox "Body: " & i
-            '     Next
-
             Dim oSel as Selection
             Set oSel = CATIA.ActiveDocument.selection
 
             oSel.Clear()
 
-            ' Dim F_Body as object
-
-
-            Filter(0)="Body"
-            Filter(1)="HybridBody"
-
-            ' F_Body =
-
-            ' oSel.SelectElement3(Filter, "Select the Part Bodys or GeoSets, then select the green ball to end the selection.", False, INFITF.CATMultiSelectionMode.CATMultiSelTriggWhenUserValidatesSelection, False)
 
             F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
-
-            ' MsgBox F_Body
 
             If F_Body = "Normal" Then
 
@@ -250,84 +261,26 @@ Sub Process()
 
                 If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
                     Set part = CATIA.ActiveDocument.Part
-
                 Else
                     Set part = CATIA.ActiveDocument
-
                 End If
-
 
                 Set myBodyPart = part
 
-
-                ' MsgBox TypeName(oSel.Item(1))
-
-                If TypeName(oSel.Item(1)) = "SelectedElement" Then
-                    Set body = oSel.Item(1).Value
-
-                    '     Set theHSF = CATIA.ActiveDocument.Part.HybridShapeFactory
-                    ' Else
-                    '     Set theHSF = CATIA.ActiveDocument.HybridShapeFactory
-                End If
-
-                ' MsgBox TypeName(body.Value)
-
-                ' If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
+                Set body = oSel.Item(1).Value
 
                 Set theHSF = myBodyPart.HybridShapeFactory
-                ' Else
-                '     Set theHSF = CATIA.ActiveDocument.HybridShapeFactory
-                ' End If
-
-                ' MsgBox TypeName(body)
-                ' If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
 
                 If TypeName(body) = "HybridBody" Then
-
-                    Set theObjectRef = myBodyPart.CreateReferenceFromObject(body.HybridShapes.Item(1))
+                    Set selectedObject = body.HybridShapes.Item(1)
                 Else
-                    Set theObjectRef = myBodyPart.CreateReferenceFromObject(body)
+                    set selectedObject = body
                 End If
-                ' Else
-                '     Set theObjectRef = CATIA.ActiveDocument.CreateReferenceFromObject(body)
-                ' End If
 
-                ' Set theObjectRef = myBodyPart.CreateReferenceFromObject(body)
-
-                ' Initialize the mins,maxs to impossible values
-
-                mins(0) = 100000
-                mins(1) = 100000
-                mins(2) = 100000
-                maxs(0) = -100000
-                maxs(1) = -100000
-                maxs(2) = -100000
-
-                ' Add a temporary body for points (TEMP body can be deleted)
-                ' Dim tempBody As Object
-                ' Set tempBody = body
-                ' tempBody.Name = "TEMP"
-
-                ' MsgBox TypeName(body)
-
-                ' Evalute the Axis System Directions
-                originCoord(0) = 0
-                originCoord(1) = 0
-                originCoord(2) = 0
+                Set theObjectRef = myBodyPart.CreateReferenceFromObject(selectedObject)
 
 
-                XAxisCoord(0) = 1
-                XAxisCoord(1) = 0
-                XAxisCoord(2) = 0
 
-                YAxisCoord(0) = 0
-                YAxisCoord(1) = 1
-                YAxisCoord(2) = 0
-
-
-                ZAxisCoord(0) = 0
-                ZAxisCoord(1) = 0
-                ZAxisCoord(2) = 1
 
                 ' Make directions for X Y and Z
 
@@ -337,102 +290,99 @@ Sub Process()
 
                 Set theZDir = theHSF.AddNewDirectionByCoord(originCoord(0) - ZAxisCoord(0), originCoord(1) - ZAxisCoord(1), originCoord(2) - ZAxisCoord(2))
 
-                ' MsgBox TypeName(theObjectRef)
-
-                ' Construct some extremums and check the coordinates against the mins/maxs
-                Set theExtremums(0) =theHSF.AddNewExtremum(theObjectRef, theXDir, 1)
-                theExtremums(0).Direction2 = theYDir
-                theExtremums(0).ExtremumType2 = 1
-                theExtremums(0).Direction3 = theZDir
-                theExtremums(0).ExtremumType3 = 1
-                myBodyPart.UpdateObject(theExtremums(0))
-                Set theExtremums(1) = theHSF.AddNewExtremum(theObjectRef, theXDir, 0)
-                theExtremums(1).Direction2 = theYDir
-                theExtremums(1).ExtremumType2 = 1
-                theExtremums(1).Direction3 = theZDir
-                theExtremums(1).ExtremumType3 = 1
-                myBodyPart.UpdateObject(theExtremums(1))
-                Set theExtremums(2) = theHSF.AddNewExtremum(theObjectRef, theYDir, 1)
-                theExtremums(2).Direction2 = theZDir
-                theExtremums(2).ExtremumType2 = 1
-                theExtremums(2).Direction3 = theXDir
-                theExtremums(2).ExtremumType3 = 1
-                myBodyPart.UpdateObject(theExtremums(2))
-                Set theExtremums(3) = theHSF.AddNewExtremum(theObjectRef, theYDir, 0)
-                theExtremums(3).Direction2 = theZDir
-                theExtremums(3).ExtremumType2 = 1
-                theExtremums(3).Direction3 = theXDir
-                theExtremums(3).ExtremumType3 = 1
-                myBodyPart.UpdateObject(theExtremums(3))
-                Set theExtremums(4) = theHSF.AddNewExtremum(theObjectRef, theZDir, 1)
-                theExtremums(4).Direction2 = theXDir
-                theExtremums(4).ExtremumType2 = 1
-                theExtremums(4).Direction3 = theYDir
-                theExtremums(4).ExtremumType3 = 1
-                myBodyPart.UpdateObject(theExtremums(4))
-                Set theExtremums(5) = theHSF.AddNewExtremum(theObjectRef, theZDir, 0)
-                theExtremums(5).Direction2 = theXDir
-                theExtremums(5).ExtremumType2 = 1
-                theExtremums(5).Direction3 = theYDir
-                theExtremums(5).ExtremumType3 = 1
-                myBodyPart.UpdateObject(theExtremums(5))
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 0, 1
+                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 1, 0
+                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theYDir, theZDir, theXDir, 2, 1
+                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 3, 0
+                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 4, 1
+                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 5, 0
 
 
-                For ii = 0 To 5
-                    Set theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
-                    Set aPoint = theHSF.AddNewPointDatum(theEXRef)
-                    aPoint.Compute()
-                    aPoint.GetCoordinates(dCoords)
-                    For j = 0 To 2
-                        If dCoords(j) < mins(j) Then
-                            mins(j) = dCoords(j)
-                        End If
-                        If dCoords(j) > maxs(j) Then
-                            maxs(j) = dCoords(j)
-                        End If
-                        Next
-                        Next
 
-                        ' Find Distance in X, Y, and Z and Convert to Inches
+                ' For ii = 0 To 5
+                '     Set theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
+                '     Set aPoint = theHSF.AddNewPointDatum(theEXRef)
+                '     aPoint.Compute()
+                '     aPoint.GetCoordinates(dCoords)
+                '     For j = 0 To 2
+                '         If dCoords(j) < mins(j) Then
+                '             mins(j) = dCoords(j)
+                '         End If
+                '         If dCoords(j) > maxs(j) Then
+                '             maxs(j) = dCoords(j)
+                '         End If
+                '         Next
+                '         Next
 
-                        sXLength = FormatNumber(Int((((maxs(0) - mins(0)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
-                        sYLength = FormatNumber(Int((((maxs(1) - mins(1)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
-                        sZLength = FormatNumber(Int((((maxs(2) - mins(2)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                FindExtremes myBodyPart, theHSF, theExtremums, dCoords, mins, maxs
+
+                ' Find Distance in X, Y, and Z and Convert to Inches
+
+                sXLength = FormatNumber(Int((((maxs(0) - mins(0)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                sYLength = FormatNumber(Int((((maxs(1) - mins(1)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                sZLength = FormatNumber(Int((((maxs(2) - mins(2)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
 
 
 
 
-                        FillOut  fileName, fileLeaf, sXLength, sYLength, sZLength
+                FillOut  fileName, fileLeaf, sXLength, sYLength, sZLength
 
-                        AddPicture  photosPath
+                AddPicture  photosPath
 
-                        iRow = iRow + 1
+                iRow = iRow + 1
 
-                        If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".stp") Then
-                            objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".stp", stpDest
-                        End If
-
-                        If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".step") Then
-                            objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".step", stpDest
-                        End If
-
-                        If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".catpart") Then
-                            objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".catpart", catDest
-                        End If
-
-                        If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".igs") Then
-                            objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".igs", igsDest
-                        End If
-
-                    End If
-
-                    CATIA.ActiveWindow.Close()
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".stp") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".stp", stpDest
                 End If
 
-                Next
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".step") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".step", stpDest
+                End If
+
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".catpart") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".catpart", catDest
+                End If
+
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".igs") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".igs", igsDest
+                End If
+
+            End If
+
+            CATIA.ActiveWindow.Close()
+        End If
+
+        Next
 End Sub
 
+Sub FindExtremes(myBodyPart, theHSF, theExtremums, dCoords, mins, maxs)
+    For ii = 0 To 5
+        Set theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
+        Set aPoint = theHSF.AddNewPointDatum(theEXRef)
+        aPoint.Compute()
+        aPoint.GetCoordinates(dCoords)
+        For j = 0 To 2
+            If dCoords(j) < mins(j) Then
+                mins(j) = dCoords(j)
+            End If
+            If dCoords(j) > maxs(j) Then
+                maxs(j) = dCoords(j)
+            End If
+            Next
+            Next
+End Sub
 
+Sub SetExtremes(myBodyPart,theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, i, other)
+
+    ' Construct some extremums and check the coordinates against the mins/maxs
+    Set theExtremums(i) =theHSF.AddNewExtremum(theObjectRef, theXDir, other)
+    theExtremums(i).Direction2 = theYDir
+    theExtremums(i).ExtremumType2 = 1
+    theExtremums(i).Direction3 = theZDir
+    theExtremums(i).ExtremumType3 = 1
+    myBodyPart.UpdateObject(theExtremums(i))
+
+End Sub
 Sub FillOut( fileName As String, fileLeaf As String, length As Integer, width As Integer, height As Integer)
 
 
@@ -466,3 +416,5 @@ Sub AddPicture(photosPath As String)
     End With
 
 End Sub
+
+' 468
