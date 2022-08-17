@@ -1,0 +1,64 @@
+Language="VBSCRIPT"
+
+Sub CATMain()
+    Dim oSel as Selection
+    Set oSel = CATIA.ActiveDocument.selection
+    Dim theObjectRef As Object
+    Dim theHSF As Object
+
+    oSel.Clear()
+
+    Dim F_Body as object
+
+    Dim Filter(1)
+    Filter(0)="Body"
+    Filter(1)="HybridBody"
+
+    F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
+
+
+    Dim part As Part
+    Set part = CATIA.ActiveDocument
+
+    Dim myBodyPart As Part
+    Set myBodyPart = CATIA.ActiveDocument
+
+    Dim body As body
+
+
+
+
+    MsgBox TypeName(oSel.Item(1).Value)
+
+    If TypeName(oSel.Item(1)) = "SelectedElement" Then
+        Set body = osel.Item(1).Value
+
+        ' MsgBox oSel.Count
+        ' TypeName(selectedItem)
+
+        '     Set theHSF = CATIA.ActiveDocument.Part.HybridShapeFactory
+        ' Else
+        '     Set theHSF = CATIA.ActiveDocument.HybridShapeFactory
+    End If
+
+    ' MsgBox TypeName(body.Value)
+
+    If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
+
+        Set theHSF = CATIA.ActiveDocument.Part.HybridShapeFactory
+    Else
+        Set theHSF = CATIA.ActiveDocument.HybridShapeFactory
+    End If
+
+    ' MsgBox TypeName(body)
+    If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
+
+        Dim partDocument As PartDocument
+        Set partDocument = CATIA.ActiveDocument
+        MsgBox TypeName(partDocument)
+
+        Set theObjectRef = CATIA.ActiveDocument.Part.CreateReferenceFromObject(body)
+    Else
+        Set theObjectRef = CATIA.ActiveDocument.CreateReferenceFromObject(body)
+    End If
+End Sub
