@@ -1,16 +1,5 @@
 Language="VBSCRIPT"
 
-Sub GetProductInertia(MeasuredProduct)
-    Dim PrincipalAxes(15)
-    Set ProductInertia = MeasuredProduct.ReferenceProduct.GetTechnologicalObject("Inertia")
-    ProductInertia.GetPrincipalAxes PrincipalAxes
-
-    For i = 0 To 14
-        MsgBox PrincipalAxes(i) & "  as: " & TypeName(PrincipalAxes(i))
-        Next
-
-End Sub
-
 Dim mainDirectory as String
 
 
@@ -40,9 +29,27 @@ Dim objFSO As Object
 Dim oFolder As Object
 
 
+
+Function DisplayPart() As Part
+    Select Case TypeName(CATIA.ActiveDocument)
+     Case "PartDocument"
+        Set DisplayPart = CATIA.ActiveDocument.Part
+
+    End Select
+
+
+End Function
+
+Function DisplayDocument() As Document
+    Set DisplayDocument= CATIA.ActiveDocument
+End Function
+
+
 Sub CATMain()
 
+    ' MsgBox TypeName(DisplayPart())
 
+    ' Return
 
     CATIA.DisplayFileAlerts = False
 
@@ -96,65 +103,42 @@ End Sub
 
 Sub Process()
 
-    Dim Filter(1)
-    Dim mins(2) As Object
-    Dim maxs(2) As Object
 
     Dim aPoint As Object
     Dim theEXRef As Object
-    Dim dCoords(2) As Object
+
     Dim dResult(2) As Object
     Dim ii, j As Short
-    Dim theXDir As Object
-    Dim theyDir As Object
-    Dim theZDir As Object
     Dim theExtremums(5)
     Dim body As body
-    Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+    ' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
     Dim theObjectRef As Object
 
 
 
-    Dim dataPath As String
+    ' Dim dataPath As String
 
-    Dim originCoord(2) As Object
-    Dim XAxisCoord(2) As Object
-    Dim YAxisCoord(2) As Object
-    Dim ZAxisCoord(2) As Object
+    ' Dim originCoord(2) As Object
+    ' Dim XAxisCoord(2) As Object
+    XAxisCoord = Array(1,0,0)
+    YAxisCoord = Array(0,1,0)
+    ZAxisCoord = Array(0,0,1)
+
+
     Dim selectedObject As Object
 
     ' Initialize the mins,maxs to impossible values
-    mins(0) = 100000
-    mins(1) = 100000
-    mins(2) = 100000
-    maxs(0) = -100000
-    maxs(1) = -100000
-    maxs(2) = -100000
+    mins = Array( 100000, 100000, 100000)
+    maxs = Array( -100000, -100000, -100000)
 
     ' Evalute the Axis System Directions
-    originCoord(0) = 0
-    originCoord(1) = 0
-    originCoord(2) = 0
+    originCoord = Array(0,0,0)
 
-    XAxisCoord(0) = 1
-    XAxisCoord(1) = 0
-    XAxisCoord(2) = 0
-
-    YAxisCoord(0) = 0
-    YAxisCoord(1) = 1
-    YAxisCoord(2) = 0
-
-    ZAxisCoord(0) = 0
-    ZAxisCoord(1) = 0
-    ZAxisCoord(2) = 1
-
-
-    Filter(0)="Body"
-    Filter(1)="HybridBody"
+    Filter = Array("Body","HybridBody")
 
     For Each oFile in oFolder.Files
 
-        dataPath = oFile
+        dataPath = oFile As String
 
         fileName = LCase(oFile.Name)
 
@@ -200,9 +184,9 @@ Sub Process()
 
         If dataExtension = ".stp" Or dataExtension = ".step" Then
 
-            CATIA.ActiveDocument.SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
+            DisplayDocument().SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
 
-            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".igs", "igs"
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".igs", "igs"
 
             stpDest = suppliedDataPath
 
@@ -214,9 +198,9 @@ Sub Process()
 
         If dataExtension = ".igs" Then
 
-            CATIA.ActiveDocument.SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
+            DisplayDocument().SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
 
-            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
 
             stpDest = translateStpPath
 
@@ -228,9 +212,9 @@ Sub Process()
 
         If dataExtension = ".catpart" Then
 
-            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".igs" , "igs"
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".igs" , "igs"
 
-            CATIA.ActiveDocument.ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
 
             stpDest = translateStpPath
 
@@ -243,7 +227,7 @@ Sub Process()
         If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Or dataExtension = ".step" Then
 
             Dim oSel as Selection
-            Set oSel = CATIA.ActiveDocument.selection
+            Set oSel = DisplayDocument().selection
 
             oSel.Clear()
 
@@ -269,7 +253,7 @@ Sub Process()
 
                 Set body = oSel.Item(1).Value
 
-                Set theHSF = myBodyPart.HybridShapeFactory
+                Set theHSF = myBodyPart.HybridShapeFactory As HybridShapeTypeLib.HybridShapeFactory
 
                 If TypeName(body) = "HybridBody" Then
                     Set selectedObject = body.HybridShapes.Item(1)
@@ -291,39 +275,18 @@ Sub Process()
                 Set theZDir = theHSF.AddNewDirectionByCoord(originCoord(0) - ZAxisCoord(0), originCoord(1) - ZAxisCoord(1), originCoord(2) - ZAxisCoord(2))
 
                 SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 0, 1
-                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 1, 0
-                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theYDir, theZDir, theXDir, 2, 1
-                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 3, 0
-                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 4, 1
-                SetExtremes myBodyPart,theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 5, 0
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 1, 0
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theYDir, theZDir, theXDir, 2, 1
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 3, 0
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 4, 1
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 5, 0
 
-
-
-                ' For ii = 0 To 5
-                '     Set theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
-                '     Set aPoint = theHSF.AddNewPointDatum(theEXRef)
-                '     aPoint.Compute()
-                '     aPoint.GetCoordinates(dCoords)
-                '     For j = 0 To 2
-                '         If dCoords(j) < mins(j) Then
-                '             mins(j) = dCoords(j)
-                '         End If
-                '         If dCoords(j) > maxs(j) Then
-                '             maxs(j) = dCoords(j)
-                '         End If
-                '         Next
-                '         Next
-
-                FindExtremes myBodyPart, theHSF, theExtremums, dCoords, mins, maxs
+                FindExtremes myBodyPart, theHSF, theExtremums, mins, maxs
 
                 ' Find Distance in X, Y, and Z and Convert to Inches
-
                 sXLength = FormatNumber(Int((((maxs(0) - mins(0)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
                 sYLength = FormatNumber(Int((((maxs(1) - mins(1)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
                 sZLength = FormatNumber(Int((((maxs(2) - mins(2)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
-
-
-
 
                 FillOut  fileName, fileLeaf, sXLength, sYLength, sZLength
 
@@ -355,7 +318,8 @@ Sub Process()
         Next
 End Sub
 
-Sub FindExtremes(myBodyPart, theHSF, theExtremums, dCoords, mins, maxs)
+Sub FindExtremes(myBodyPart, theHSF, theExtremums,  mins, maxs)
+    Dim dCoords(2) as Object
     For ii = 0 To 5
         Set theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
         Set aPoint = theHSF.AddNewPointDatum(theEXRef)
