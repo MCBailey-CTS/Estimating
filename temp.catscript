@@ -388,21 +388,21 @@ Sub GetParams(ByRef myPart As MECMOD.Part, ByRef myProd As ProductStructureTypeL
     Dim myParameters As Object 'As Parameters
     myParameters = myPart.Parameters
     Dim myParam As KnowledgewareTypeLib.Parameter
-    On Error Resume Next
+    ' On Error Resume Next
     myParam = myParameters.Item("Material")
     If Err.Number = 0 Then
         sMatl = myParam.ValueAsString
     End If
-    On Error GoTo 0
+    ' On Error GoTo 0
     Dim myProduct As ProductStructureTypeLib.Product
     myParameters = myProd.UserRefProperties
-    On Error Resume Next
+    ' On Error Resume Next
     myParam = myParameters.Item("Material")
     If Err.Number = 0 Then
         sMatl = myParam.ValueAsString
     End If
     On Error GoTo 0
-    On Error Resume Next
+    ' On Error Resume Next
     myParam = myParameters.Item("Thickness")
     If Err.Number = 0 Then
         myThickness = myParam.ValueAsString
@@ -484,7 +484,7 @@ Sub FindBoundingBoxXYZ(ByRef myBodyPart As MECMOD.Part, ByRef theStock As Object
 
     ' Create reference of the Stock Body (must be Solid Body in NC Geo Part)
     Dim theObjectRef As Object
-    On Error Resume Next
+    ' On Error Resume Next
     'UPGRADE_WARNING: Couldn't resolve default property of object theStock. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
     theObjectRef = myBodyPart.CreateReferenceFromObject(theStock)
     If Err.Number <> 0 Then
@@ -674,7 +674,7 @@ Sub FindBoundingBoxXYZ(ByRef myBodyPart As MECMOD.Part, ByRef theStock As Object
     theExtremums(0).ExtremumType3 = 1
     'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
     tempBody.AppendHybridShape(theExtremums(0))
-    On Error Resume Next
+    ' On Error Resume Next
     'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
     myBodyPart.UpdateObject(theExtremums(0))
     If Err.Number <> 0 Then
@@ -1001,6 +1001,39 @@ Sub Snapshot(ByRef sFileName As String, ByRef sX As String, ByRef sY As String, 
     System.Windows.Forms.Application.DoEvents()
 End Sub
 
+Sub HidePlanes(myPart, mySelection)
+    ' Hide Planes
+    Set    myOriginElements = myPart.OriginElements
+
+    Set myHSPlaneExplicit = myOriginElements.PlaneXY
+    mySelection.Add(myHSPlaneExplicit)
+    Set myHSPlaneExplicit = myOriginElements.PlaneYZ
+    mySelection.Add(myHSPlaneExplicit)
+    Set myHSPlaneExplicit = myOriginElements.PlaneZX
+    mySelection.Add(myHSPlaneExplicit)
+    Set myVisPropertySet = mySelection.VisProperties
+    'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+    Set myVisPropertySet = mySelection.VisProperties
+    'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+End Sub
+
+Sub ReFrameISO()
+    Dim myViewer As INFITF.Viewer
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveWindow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer = CATIA.ActiveWindow.ActiveViewer
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Viewpoint3D. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Viewpoint3D = CATIA.ActiveDocument.Cameras.Item(1)
+    myViewer.ZoomIn()
+    myViewer.Reframe()
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StartCommand. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.StartCommand("Fit All In")
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StartCommand. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.StartCommand("* iso")
+
+End Sub
 Sub CATMain()
 
 
@@ -1101,525 +1134,544 @@ Sub CATMain()
     Dim myObjects(100) As Object 'As VisPropertySet
 
     Set fsys = CreateObject("Scripting.FileSystemObject")
+    Dim explicit_files(1) As String
 
 
     iType = 0
     ' For iType = 1 To 3
+    ' Do
+    iType = iType + 1
+    If boolStep = False And iType = 2 Then
+        iType = 3 ' Skip Step if no License
+    End If
+    If iType = 1 Then
+        strDirSearch = myPath & "\" & "*.CATPart"
+        ' Create SnapShot Dir
+        ' On Error Resume Next
+        ' If Not fsys.FolderExists()
+        ' MsgBox myPath
+        ' MsgBox mySaveDir
+        If Not fsys.FolderExists(myPath & "\" & mySaveDir) Then
+            fsys.CreateFolder(myPath & "\" & mySaveDir)
+        End If
+        If Not fsys.FolderExists(myPath & "\" & myCopiedData) Then
+            fsys.CreateFolder(myPath & "\" & myCopiedData)
+        End If
+        If Not fsys.FolderExists(myPath & "\Photos") Then
+            fsys.CreateFolder(myPath & "\Photos")
+        End If
+
+        If Not fsys.FolderExists(myPath & "\temp") Then
+            fsys.CreateFolder(myPath & "\temp")
+        End If
+        ' MkDir(myPath & "\" & myCopiedData)
+        ' MkDir(myPath & "\Photos")
+        ' On Error GoTo 0
+        ' ElseIf iType = 2 Then
+        '     If iCnt > 0 Then ' Batch Process R24 parts into Step
+        '         BatchConvertStep iCnt, sR24PartNames, myPath
+        '         ' Move Original files to Supplied Data
+
+        '         j = 0
+        '         Do
+        '             j = j + 1
+        '             fsys.MoveFile myPath & "\" & sR24PartNames(j), myPath & "\" & myCopiedData & "\" & sR24PartNames(j)
+
+        '         Loop While j <= iCnt
+        '         fsys = Nothing
+        '     End If
+        '     strDirSearch = myPath & "\" & "*.stp"
+        ' ElseIf iType = 3 Then
+        '     strDirSearch = myPath & "\" & "*.igs"
+    End If
+
+    ' MsgBox strDirSearch
+    ' Dir("C:\Catia\Project_Estimating")
+
+    ' Set mainFolder = fsys.GetFolder( "C:\Catia\Project_Estimating") As Folder
+
+    ' Set mainFolder = CreateObject("Scripting.FileSystemObject").GetFolder( "C:\Catia\Project_Estimating") As Folder
+
+    found_file = False
+
+    Set mainFolder = CreateObject("Scripting.FileSystemObject").GetFolder( "C:\Catia\Project_Estimating") As Folder
+
+    ' Dim file As String
+
+    ' For Each temp In mainFolder.Files
+    '     dataPath = temp As String
+
+    '     fileName = LCase(temp.Name)
+
+    '     dotIndex = InStrRev(fileName,".")
+
+    '     fileLeaf = LCase(Left(fileName,dotIndex - 1))
+
+    '     dataExtension = LCase(Mid(fileName, dotIndex))
+
+    '     If dataExtension = ".catpart" Then
+
+    '         found_file = True
+    '         sFileName = temp
+    '         Exit For
+    '     End If
+    '     Next
+
+    explicit_files(0) = "C:\Catia\Project_Estimating\anz18577.geo_fin001.001999  refset PART.CATPart"
+    explicit_files(1) = "C:\Catia\Project_Estimating\anz18578.geo_fin001.002999  refset PART.CATPart"
+    ' MsgBox "before"
+
+    ' MsgBox explicit_files(0)
+    ' MsgBox explicit_files(1)
+
+    ' Do Until Len(sFileName) <= 0
+    ' MsgBox "after " & sFileName
+
+    j = -1
     Do
-        iType = iType + 1
-        If boolStep = False And iType = 2 Then
-            iType = 3 ' Skip Step if no License
+
+        j = j + 1
+
+        sFileName = explicit_files(j)
+
+        CATIA.StatusBar = "Opening " & sFileName
+        ' On Error Resume Next
+        ' MsgBox myPath & "\" & sFileName
+        Set myPartDocument = CATIA.Documents.Open(sFileName) As PartDocument
+        If Err.Number <> 0 Then
+            MsgBox "Error Opening " & sFileName & vbCrLf & "Error is " & Err.Number & " " & Err.Description, MsgBoxStyle.Critical, "File Open Error"
         End If
-        If iType = 1 Then
-            strDirSearch = myPath & "\" & "*.CATPart"
-            ' Create SnapShot Dir
-            ' On Error Resume Next
-            ' If Not fsys.FolderExists()
-            ' MsgBox myPath
-            ' MsgBox mySaveDir
-            If Not fsys.FolderExists(myPath & "\" & mySaveDir) Then
-                fsys.CreateFolder(myPath & "\" & mySaveDir)
-            End If
-            If Not fsys.FolderExists(myPath & "\" & myCopiedData) Then
-                fsys.CreateFolder(myPath & "\" & myCopiedData)
-            End If
-            If Not fsys.FolderExists(myPath & "\Photos") Then
-                fsys.CreateFolder(myPath & "\Photos")
-            End If
-            ' MkDir(myPath & "\" & myCopiedData)
-            ' MkDir(myPath & "\Photos")
-            ' On Error GoTo 0
-        ElseIf iType = 2 Then
-            If iCnt > 0 Then ' Batch Process R24 parts into Step
-                BatchConvertStep iCnt, sR24PartNames, myPath
-                ' Move Original files to Supplied Data
+        On Error GoTo 0
+        ' Wait4()
+        CATIA.RefreshDisplay = True
+        Set myProductDoc = CATIA.ActiveDocument
+        Set myProd = myProductDoc.Product
+        CATIA.StatusBar = "Processing..."
+        If myProd.Products.Count = 0 And InStr(1, myProductDoc.Name, "CATPart") > 0 Then
+            Set myPart = myProductDoc.Part
+            myPart.Update()
 
-                j = 0
-                Do
-                    j = j + 1
-                    fsys.MoveFile myPath & "\" & sR24PartNames(j), myPath & "\" & myCopiedData & "\" & sR24PartNames(j)
+            Set mySelection = CATIA.ActiveDocument.Selection
+            mySelection.Clear()
 
-                Loop While j <= iCnt
-                fsys = Nothing
-            End If
-            strDirSearch = myPath & "\" & "*.stp"
-        ElseIf iType = 3 Then
-            strDirSearch = myPath & "\" & "*.igs"
-        End If
+            nBodys = 0
+            mySelection.Clear()
 
-        ' MsgBox strDirSearch
-        ' Dir("C:\Catia\Project_Estimating")
+            j = 0
 
-        ' Set mainFolder = fsys.GetFolder( "C:\Catia\Project_Estimating") As Folder
+            ' For  body1 In myPart.Bodies
+            '     MsgBox TypeName(body1)
+            ' Next
 
-        ' Set mainFolder = CreateObject("Scripting.FileSystemObject").GetFolder( "C:\Catia\Project_Estimating") As Folder
+            Do
+                j = j + 1
+                ' MsgBox myPart.Bodies.Count
+                ' Set myBody = myPart.Bodies.Item(j - 1)
+                Set bodies = myPart.Bodies As Bodies
+                Set myBody = bodies.Item(1)
 
-        found_file = False
-
-        Set mainFolder = CreateObject("Scripting.FileSystemObject").GetFolder( "C:\Catia\Project_Estimating") As Folder
-
-        ' Dim file As String
-
-        For Each temp In mainFolder.Files
-            dataPath = temp As String
-
-            fileName = LCase(temp.Name)
-
-            dotIndex = InStrRev(fileName,".")
-
-            fileLeaf = LCase(Left(fileName,dotIndex - 1))
-
-            dataExtension = LCase(Mid(fileName, dotIndex))
-
-            If dataExtension = ".catpart" Then
-
-                found_file = True
-                sFileName = temp
-                Exit For
-            End If
-            Next
-
-            MsgBox "before"
-
-            Do Until Len(sFileName) <= 0
-                MsgBox "after " & sFileName
-
-                CATIA.StatusBar = "Opening " & sFileName
-                On Error Resume Next
-                ' MsgBox myPath & "\" & sFileName
-                Set myPartDocument = CATIA.Documents.Open(sFileName) As PartDocument
-                If Err.Number <> 0 Then
-                    MsgBox "Error Opening " & sFileName & vbCrLf & "Error is " & Err.Number & " " & Err.Description, MsgBoxStyle.Critical, "File Open Error"
+                If myBody.Shapes.Count > 0 Then
+                    nBodys = nBodys + 1
+                    'UPGRADE_WARNING: Couldn't resolve default property of object myBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    If iType = 1 Then
+                        mySelection.Add(myBody)
+                    End If
                 End If
-                On Error GoTo 0
-                ' Wait4()
-                CATIA.RefreshDisplay = True
-                Set myProductDoc = CATIA.ActiveDocument
-                Set myProd = myProductDoc.Product
-                CATIA.StatusBar = "Processing..."
-                If myProd.Products.Count = 0 And InStr(1, myProductDoc.Name, "CATPart") > 0 Then
-                    Set myPart = myProductDoc.Part
-                    myPart.Update()
 
-                    Set mySelection = CATIA.ActiveDocument.Selection
-                    mySelection.Clear()
+            Loop While j <= myPart.Bodies.Count
 
-                    nBodys = 0
-                    mySelection.Clear()
+            ' MsgBox
 
-                    j = 0
 
+            j = 0
+
+
+
+            Do
+                j = j + 1
+                Set hybridBodies = myPart.HybridBodies As HybridBodies
+                ' MsgBox hybridBodies.Count
+                Set myHBBody = hybridBodies.Item(j) As HybridBody
+                Set hybridShapes = myHBBody.HybridShapes As HybridShapes
+
+                If hybridShapes.Count > 0 Then
+                    x = 0
                     Do
-                        j = j + 1
-                        ' MsgBox myPart.Bodies.Count
-                        ' Set myBody = myPart.Bodies.Item(j - 1)
-                        Set bodies = myPart.Bodies As Bodies
-                        Set myBody = bodies.Item(1)
 
-                        If myBody.Shapes.Count > 0 Then
+                        x = x + 1
+                        myHBShape = myHBBody.HybridShapes.Item(x)
+                        If TypeName(myHBShape) = "HybridShapeSurfaceExplicit" Then
                             nBodys = nBodys + 1
-                            'UPGRADE_WARNING: Couldn't resolve default property of object myBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
                             If iType = 1 Then
-                                mySelection.Add(myBody)
+                                mySelection.Add(myHBBody)
                             End If
+                            x = myHBBody.HybridShapes.Count + 1
                         End If
 
-                    Loop While j <= myPart.Bodies.Count
-
-                    j = 0
-
-                    Do
-                        j = j + 1
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-
-                        Set hybridBodies = myPart.HybridBodies As HybridBodies
-                        ' MsgBox hybridBodies.Count
-                        Set myHBBody = hybridBodies.Item(j) As HybridBody
-                        Set hybridShapes = myHBBody.HybridShapes As HybridShapes
-
-
-
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-                        '''''''''''''''''''''''''''''''''''''''''''''
-
-                        If hybridShapes.Count > 0 Then
-                            x = 0
-                            Do
-
-                                x = x + 1
-                                myHBShape = myHBBody.HybridShapes.Item(x)
-                                If TypeName(myHBShape) = "HybridShapeSurfaceExplicit" Then
-                                    nBodys = nBodys + 1
-                                    If iType = 1 Then
-                                        mySelection.Add(myHBBody)
-                                    End If
-                                    x = myHBBody.HybridShapes.Count + 1
-                                End If
-
-                            Loop While x <= myHBBody.HybridShapes.Count
-                        End If
-
-                    Loop While j < myPart.HybridBodies.Count
-
-
-
-                    On Error Resume Next
-                    If nBodys > 1 Then
-                        If iType = 1 Then
-                            myVisPropertySet = mySelection.VisProperties
-                            'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
-                        End If
-                        ReFrameISO()
-                        'UPGRADE_WARNING: Couldn't resolve default property of object iRet. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        iRet = MsgBox(nBodys & " Bodies Found in " & myPart.Name & vbCrLf & "Yes to Multi Process all Bodies" & vbCrLf & "No to Select Geo Sets and Bodies", MsgBoxStyle.YesNoCancel + MsgBoxStyle.DefaultButton1 + MsgBoxStyle.Information, "Process Individual Bodies")
-                        If iRet = MsgBoxResult.Cancel Then
-                            nBodys = 1
-                        ElseIf iRet = MsgBoxResult.No Then
-                            mySelection.Clear()
-                            'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            selfilter(0) = "Body"
-                            'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            selfilter(1) = "HybridBody"
-                            MsgBox "Select the Part Bodys or GeoSets, then select the green ball to end the selection." & vbCrLf & "Or UNDO to Cancel", MsgBoxStyle.Information, "Part Bodys/GeoSets Selection"
-                            mySel = mySelection
-                            'UPGRADE_WARNING: Couldn't resolve default property of object mySel.SelectElement3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            sAnswer = mySel.SelectElement3(selfilter, "Select the Part Bodys or GeoSets, then select the green ball to end the selection.", False, INFITF.CATMultiSelectionMode.CATMultiSelTriggWhenUserValidatesSelection, False)
-                            'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            If sAnswer = "Undo" Or sAnswer = "Cancel" Then
-                                Exit Sub
-                            End If
-                            'UPGRADE_WARNING: Couldn't resolve default property of object mySel.Count. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                            nBodys = mySel.Count
-
-
-                            hCnt = 0
-
-                            Do
-                                hCnt = hCnt + 1
-
-                                myObjects(hCnt) = mySel.Item(hCnt).Value
-                                'UPGRADE_WARNING: Couldn't resolve default property of object myObjects().Parent. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                                myBodyPart = myObjects(hCnt).Parent.Parent
-                                'UPGRADE_WARNING: Couldn't resolve default property of object myBodyPart.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                                'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
-
-
-                            Loop While hCnt <= nBodys
-                        Else
-                            Do
-                                j = j + 1
-                                mySelection.Add(myPart.Bodies.Item(j))
-                                myObjects(j) = myPart.Bodies.Item(j)
-                                'UPGRADE_WARNING: Couldn't resolve default property of object myObjects(j).Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                                'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
-
-
-
-                            Loop While j <= nBodys
-
-                            j = 0
-
-                            Do
-                                j = j + 1
-                                mySelection.Add(myPart.HybridBodies.Item(j))
-
-
-                            Loop While j <=myPart.HybridBodies.Count
-                        End If
-                    Else
-                        nBodys = 1
-                        If myPart.MainBody.Shapes.Count = 0 Then
-                            myObjects(1) = myPart.HybridBodies.Item(1)
-                        Else
-                            myObjects(1) = myPart.MainBody
-                        End If
-                    End If
-                    ' Hide Planes
-                    myOriginElements = myPart.OriginElements
-
-                    myHSPlaneExplicit = myOriginElements.PlaneXY
-                    mySelection.Add(myHSPlaneExplicit)
-                    myHSPlaneExplicit = myOriginElements.PlaneYZ
-                    mySelection.Add(myHSPlaneExplicit)
-                    myHSPlaneExplicit = myOriginElements.PlaneZX
-                    mySelection.Add(myHSPlaneExplicit)
-                    myVisPropertySet = mySelection.VisProperties
-                    'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
-                    myVisPropertySet = mySelection.VisProperties
-                    'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
-                    mySelection.Clear()
-                Else
-                    'UPGRADE_NOTE: Object myPart may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
-                    myPart = Nothing
-                    nBodys = 1
-
+                    Loop While x <= myHBBody.HybridShapes.Count
                 End If
-                ' Loop Thru Bodies
-                iBody = 0
-                Do
-                    iBody = iBody + 1
 
-                    If myProd.Products.Count > 0 Then ' Product
-                        myPartNumber = myProd.Name
-                    ElseIf iBody = 1 Then
-                        If iType = 3 Then
-                            myPartNumber = VB.Left(sFileName, Len(sFileName) - 4)
-                        Else
-                            myPartNumber = myPart.Name
-                        End If
-                    Else
-                        myPartNumber = myPart.Name & "-Part-" & iBody
-                    End If
-
-                    If myPart Is Nothing Then ' Product
-                        j = j
-                    Else
-                        mySelection.Clear()
-
-                        jk = 0
-                        Do
-                            jk = jk + 1
-                            mySelection.Add(myPart.Bodies.Item(jk))
+            Loop While j < myPart.HybridBodies.Count
 
 
-                        Loop While jk <myPart.Bodies.Count
 
-                        jl = 0
-                        Do
-                            jl = jl + 1
-                            mySelection.Add(myPart.HybridBodies.Item(jl))
-
-                        Loop While jl <myPart.HybridBodies.Count
-
-
-                        myVisPropertySet = mySelection.VisProperties
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
-                        mySelection.Clear()
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myObjects(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        mySelection.Add(myObjects(iBody))
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
-                        mySelection.Clear()
-                    End If
-                    ' Reframe View to ISO
-                    ReFrameISO()
-
-                    ' Find X, Y, Z
-                    sVolume = "0"
-                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    CATIA.StatusBar = "Finding Size and Weight..."
-                    FindBoundingBoxXYZ myPart, myObjects(iBody), sX, sY, sZ, sVolume
-
-                    'Retrieve the mass just to show it worked
-                    myMass = System.Math.Round(CDbl(sVolume) * 0.284, 2)
-
-                    Wait4()
-                    System.Windows.Forms.Application.DoEvents()
-                    If myPart Is Nothing Then
-                        ' GoTo Duplicate
+            ' On Error Resume Next
+            If nBodys > 1 Then
+                If iType = 1 Then
+                    Set myVisPropertySet = mySelection.VisProperties
+                    'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
+                End If
+                ' MsgBox "here"
+                ' ReFrameISO()
+                'UPGRADE_WARNING: Couldn't resolve default property of object iRet. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                ' Set iRet = MsgBox(nBodys & " Bodies Found in " & myPart.Name & vbCrLf & "Yes to Multi Process all Bodies" & vbCrLf & "No to Select Geo Sets and Bodies", MsgBoxStyle.YesNoCancel + MsgBoxStyle.DefaultButton1 + MsgBoxStyle.Information, "Process Individual Bodies")
+                ' If iRet = MsgBoxResult.Cancel Then
+                If True Then
+                    nBodys = 1
+                ElseIf iRet = MsgBoxResult.No Then
+                    mySelection.Clear()
+                    'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    selfilter(0) = "Body"
+                    'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    selfilter(1) = "HybridBody"
+                    MsgBox "Select the Part Bodys or GeoSets, then select the green ball to end the selection." & vbCrLf & "Or UNDO to Cancel", MsgBoxStyle.Information, "Part Bodys/GeoSets Selection"
+                    mySel = mySelection
+                    'UPGRADE_WARNING: Couldn't resolve default property of object mySel.SelectElement3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    sAnswer = mySel.SelectElement3(selfilter, "Select the Part Bodys or GeoSets, then select the green ball to end the selection.", False, INFITF.CATMultiSelectionMode.CATMultiSelTriggWhenUserValidatesSelection, False)
+                    'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    If sAnswer = "Undo" Or sAnswer = "Cancel" Then
                         Exit Sub
                     End If
-                    ' Hide Annotation Sets
-                    If myPart.AnnotationSets.Count > 0 Then
-                        mySelection.Clear()
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myPart.AnnotationSets.Item. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        mySelection.Add(myPart.AnnotationSets.Item(1))
-                        myVisPropertySet = mySelection.VisProperties
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
-                        mySelection.Clear()
-                    End If
-
-                    ' Take Snapshot
-                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    CATIA.StatusBar = "Taking Snapshot..."
-                    Snapshot myPath & "\Photos\" & myPartNumber, sX, sY, sZ, myMass, (myProd.Name), sPhotoFile
-                    System.Windows.Forms.Application.DoEvents()
-
-                    ' 3DXML save
-                    If sVolume <> "0" Then
-                        'UPGRADE_WARNING: Couldn't resolve default property of object sPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        sPicture = sFileName & ".3dxml"
-                        'UPGRADE_WARNING: Couldn't resolve default property of object sPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myProductDoc.ExportData. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myProductDoc.ExportData myPath & "\Photos\" & sPicture, "3dxml"
-                    End If
-
-                    CATIA.StatusBar = "Reading Parameters..."
-                    GetParams myPart, myProd, sMatl, myThickness, sPartName
-                    Wait4()
-                    myWorksheet.Cells(iRow, 1).Value = iRow - 1
-                    myWorksheet.Cells(iRow, 3).Value = sFileName
-                    myWorksheet.Cells(iRow, 4).Value = myPartNumber
-                    myWorksheet.Cells(iRow, 5).Value = sPartName
-                    If sX <> "0" Then
-                        myWorksheet.Cells(iRow, 6).Value = sX ' X Dimension
-                    End If
-
-                    If sY <> "0" Then
-                        myWorksheet.Cells(iRow, 7).Value = sY ' Y Dimension
-                    End If
-
-                    If sZ <> "0" Then
-                        myWorksheet.Cells(iRow, 8).Value = sZ ' Z Dimension
-                    End If
-                    myWorksheet.Cells(iRow, 9).Value = sMatl ' Matl
-                    myWorksheet.Cells(iRow, 10).Value = myThickness ' Material Thickness
-                    If myMass <> CDbl("0") Then
-                        myWorksheet.Cells(iRow, 11).Value = myMass ' Finished Weight
-                    End If
-                    myWorksheet.Cells(iRow, 18).Value = Mid(sPhotoFile, InStrRev(sPhotoFile, "\") + 1, 99)
-                    myWorksheet.Cells(iRow, 2).RowHeight = 80
-                    myWorksheet.Cells(iRow, 2).Select()
-                    oPicture = myExcel.ActiveSheet.Shapes.AddPicture(sPhotoFile, False, True, 1, 1, 100, 75)
-                    With oPicture
-                        .Left = myExcel.ActiveSheet.Cells(iRow, 2).Left
-                        .Top = myExcel.ActiveSheet.Cells(iRow, 2).Top
-                        .Placement = 1
-                    End With
-                    iRow = iRow + 1
-                    ' Next
-
-                    MsgBox iBody & " " & nBodys
+                    'UPGRADE_WARNING: Couldn't resolve default property of object mySel.Count. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    nBodys = mySel.Count
 
 
-                Loop While iBody < nBodys
+                    hCnt = 0
 
-            Loop
+                    Do
+                        hCnt = hCnt + 1
+
+                        myObjects(hCnt) = mySel.Item(hCnt).Value
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myObjects().Parent. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        myBodyPart = myObjects(hCnt).Parent.Parent
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myBodyPart.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
 
 
-        Loop While iType <= 3
-
-        myDoc = CATIA.ActiveDocument
-        CATIA.DisplayFileAlerts = False
-        fs = CreateObject("Scripting.FileSystemObject")
-        fs.MoveFile myPath & "\" & sFileName, myPath & "\" & myCopiedData & "\" & sFileName
-        'UPGRADE_NOTE: Object fs may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
-        fs = Nothing
-        If iType = 1 Then
-            If boolStep = True Then
-                On Error Resume Next
-                If InStr(1, myPart.Name, "|", 1) > 0 Or InStr(1, myPart.Name, ",", 1) > 0 Then
-                    sPartName = Replace(myPart.Name, "|", "_")
-                    sPartName = Replace(sPartName, ",", "_")
-                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & sPartName & ".stp", "stp"
-                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & sPartName & ".igs", "igs"
+                    Loop While hCnt <= nBodys
                 Else
-                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & myPart.Name & ".stp", "stp"
-                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & myPart.Name & ".igs", "igs"
+                    Do
+                        j = j + 1
+                        mySelection.Add(myPart.Bodies.Item(j))
+                        myObjects(j) = myPart.Bodies.Item(j)
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myObjects(j).Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+
+
+
+                    Loop While j <= nBodys
+
+                    j = 0
+
+                    Do
+                        j = j + 1
+                        mySelection.Add(myPart.HybridBodies.Item(j))
+
+
+                    Loop While j <=myPart.HybridBodies.Count
                 End If
-                On Error GoTo 0
-            End If
-            myDoc.Close()
-        Else
-            If iType = 2 Then
-                myDoc.ExportData myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".igs", "igs"
-            End If
-            If iType = 3 And boolStep = True Then
-                myDoc.ExportData myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".stp", "stp"
-                myDoc.SaveAs myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".CATPart"
             Else
-                'UPGRADE_NOTE: Object myProductDoc1 may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
-                myProductDoc1 = Nothing
-                'UPGRADE_NOTE: Object myPartDoc1 may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
-                myPartDoc1 = Nothing
-                myPart.Update()
-
-
-                ' j1 = 0
-                ' Do
-                '     j1 = j1 + 1
-
-
-                ' Loop While j <= myPart.Bodies.Count
-
-
-                'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                ' For jj = 1 To CATIA.Documents.Count
-                jj = 0
-                Do
-                    jj = jj + 1
-
-                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    If InStr(1, CATIA.Documents.Item(jj).Name, ".CATProduct") > 0 Then
-                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myProductDoc1 = CATIA.Documents.Item(jj)
-                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myProductDoc1.SaveAs(myPath & "\" & mySaveDir & "\" & CATIA.Documents.Item(jj).Name)
-                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    ElseIf InStr(1, CATIA.Documents.Item(jj).Name, ".CATPart") > 0 And InStr(1, CATIA.Documents.Item(jj).Name, ".CATPart.CATPart") <= 0 Then
-                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myPartDoc1 = CATIA.Documents.Item(jj)
-                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        myPartDoc1.SaveAs(myPath & "\" & mySaveDir & "\" & CATIA.Documents.Item(jj).Name)
-                    End If
-                    ' Next
-                Loop While jj <= CATIA.Documents.Count
-                On Error Resume Next
-                If Not myPartDoc1 Is Nothing Then
-                    myDoc.SaveAs(myPath & "\" & mySaveDir & "\" & myPart.Name & ".CATPart")
+                nBodys = 1
+                If myPart.MainBody.Shapes.Count = 0 Then
+                    myObjects(1) = myPart.HybridBodies.Item(1)
+                Else
+                    myObjects(1) = myPart.MainBody
                 End If
-                If Not myProductDoc1 Is Nothing Then
-                    myProductDoc1.Close()
-                End If
-                If Not myPartDoc1 Is Nothing Then
-                    myPartDoc1.Close()
-                End If
-                On Error GoTo 0
             End If
-            On Error Resume Next
-            myPartDocument.Close()
+
+
+            HidePlanes myPart, mySelection
+            mySelection.Clear()
+        Else
+            myPart = Nothing
+            nBodys = 1
+        End If
+
+        iBody = 0
+        Do
+            iBody = iBody + 1
+
+            If myProd.Products.Count > 0 Then ' Product
+                myPartNumber = myProd.Name
+            ElseIf iBody = 1 Then
+                If iType = 3 Then
+                    myPartNumber = VB.Left(sFileName, Len(sFileName) - 4)
+                Else
+                    myPartNumber = myPart.Name
+                End If
+            Else
+                myPartNumber = myPart.Name & "-Part-" & iBody
+            End If
+
+            If myPart Is Nothing Then ' Product
+                j = j
+            Else
+                mySelection.Clear()
+
+                ' mySelection.Add(myPart.Bodies)
+
+
+                jk = 0
+                Do
+                    jk = jk + 1
+                    mySelection.Add(myPart.Bodies.Item(jk))
+
+
+                Loop While jk <myPart.Bodies.Count
+
+                jl = 0
+                Do
+                    jl = jl + 1
+                    mySelection.Add(myPart.HybridBodies.Item(jl))
+
+                Loop While jl <myPart.HybridBodies.Count
+
+                ' mySelection.Add(myPart.HybridBodies)
+
+                ' MsgBox  mySelection.Count
+
+
+
+                Set myVisPropertySet = mySelection.VisProperties
+                myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+                mySelection.Clear()
+                mySelection.Add(myObjects(iBody))
+                myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
+                mySelection.Clear()
+            End If
+            ' Reframe View to ISO
+            ReFrameISO()
+
+            ' Find X, Y, Z
+            sVolume = "0"
+            'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            CATIA.StatusBar = "Finding Size and Weight..."
+            FindBoundingBoxXYZ myPart, myObjects(iBody), sX, sY, sZ, sVolume
+
+            'Retrieve the mass just to show it worked
+            myMass = System.Math.Round(CDbl(sVolume) * 0.284, 2)
+
+            Wait4()
+            System.Windows.Forms.Application.DoEvents()
+            If myPart Is Nothing Then
+                ' GoTo Duplicate
+                Exit Sub
+            End If
+            ' Hide Annotation Sets
+            If myPart.AnnotationSets.Count > 0 Then
+                mySelection.Clear()
+                'UPGRADE_WARNING: Couldn't resolve default property of object myPart.AnnotationSets.Item. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                mySelection.Add(myPart.AnnotationSets.Item(1))
+                myVisPropertySet = mySelection.VisProperties
+                'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+                mySelection.Clear()
+            End If
+
+            ' Take Snapshot
+            'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            CATIA.StatusBar = "Taking Snapshot..."
+            Snapshot myPath & "\Photos\" & myPartNumber, sX, sY, sZ, myMass, (myProd.Name), sPhotoFile
+            System.Windows.Forms.Application.DoEvents()
+
+            ' 3DXML save
+            If sVolume <> "0" Then
+                'UPGRADE_WARNING: Couldn't resolve default property of object sPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sPicture = sFileName & ".3dxml"
+                'UPGRADE_WARNING: Couldn't resolve default property of object sPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object myProductDoc.ExportData. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                myProductDoc.ExportData myPath & "\Photos\" & sPicture, "3dxml"
+            End If
+
+            CATIA.StatusBar = "Reading Parameters..."
+            GetParams myPart, myProd, sMatl, myThickness, sPartName
+            Wait4()
+            myWorksheet.Cells(iRow, 1).Value = iRow - 1
+            myWorksheet.Cells(iRow, 3).Value = sFileName
+            myWorksheet.Cells(iRow, 4).Value = myPartNumber
+            myWorksheet.Cells(iRow, 5).Value = sPartName
+            If sX <> "0" Then
+                myWorksheet.Cells(iRow, 6).Value = sX ' X Dimension
+            End If
+
+            If sY <> "0" Then
+                myWorksheet.Cells(iRow, 7).Value = sY ' Y Dimension
+            End If
+
+            If sZ <> "0" Then
+                myWorksheet.Cells(iRow, 8).Value = sZ ' Z Dimension
+            End If
+            myWorksheet.Cells(iRow, 9).Value = sMatl ' Matl
+            myWorksheet.Cells(iRow, 10).Value = myThickness ' Material Thickness
+            If myMass <> CDbl("0") Then
+                myWorksheet.Cells(iRow, 11).Value = myMass ' Finished Weight
+            End If
+            myWorksheet.Cells(iRow, 18).Value = Mid(sPhotoFile, InStrRev(sPhotoFile, "\") + 1, 99)
+            myWorksheet.Cells(iRow, 2).RowHeight = 80
+            myWorksheet.Cells(iRow, 2).Select()
+            oPicture = myExcel.ActiveSheet.Shapes.AddPicture(sPhotoFile, False, True, 1, 1, 100, 75)
+            MsgBox = sPhotoFile
+            With oPicture
+                .Left = myExcel.ActiveSheet.Cells(iRow, 2).Left
+                .Top = myExcel.ActiveSheet.Cells(iRow, 2).Top
+                .Placement = 1
+            End With
+            iRow = iRow + 1
+            ' Next
+
+            ' MsgBox iBody & " " & nBodys
+
+
+        Loop While iBody < nBodys
+
+        If Not fsys.FolderExists(myPath & "\temp") Then
+            fsys.CreateFolder(myPath & "\temp")
+        End If
+
+        ' Loop
+
+    Loop While kkk < 2
+
+    ' myWorkbook.Items(1).Save()
+    ' myWorkbook.Close()
+    ' myExcel.Quit()
+    ' myExcel.Quit()
+
+    ' Exit Sub
+
+    ' Loop While iType <= 3
+
+    myDoc = CATIA.ActiveDocument
+    CATIA.DisplayFileAlerts = False
+    fs = CreateObject("Scripting.FileSystemObject")
+    fs.MoveFile myPath & "\" & sFileName, myPath & "\" & myCopiedData & "\" & sFileName
+    'UPGRADE_NOTE: Object fs may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+    fs = Nothing
+    If iType = 1 Then
+        If boolStep = True Then
+            ' On Error Resume Next
+            If InStr(1, myPart.Name, "|", 1) > 0 Or InStr(1, myPart.Name, ",", 1) > 0 Then
+                sPartName = Replace(myPart.Name, "|", "_")
+                sPartName = Replace(sPartName, ",", "_")
+                myDoc.ExportData myPath & "\" & mySaveDir & "\" & sPartName & ".stp", "stp"
+                myDoc.ExportData myPath & "\" & mySaveDir & "\" & sPartName & ".igs", "igs"
+            Else
+                myDoc.ExportData myPath & "\" & mySaveDir & "\" & myPart.Name & ".stp", "stp"
+                myDoc.ExportData myPath & "\" & mySaveDir & "\" & myPart.Name & ".igs", "igs"
+            End If
             On Error GoTo 0
         End If
-        '  Duplicate:
-        '         'UPGRADE_WARNING: Dir has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
-        '         sFileName = Dir() ' get Next file
-        '     Loop
-        '     ' End Loop
-        '     Next
-        '     ' Move R24 Step Files to Translated
-        '     For j = 1 To iCnt
-        '         sR24PartNames(j) = Replace(sR24PartNames(j), "CATPart", "stp")
-        '         fsys = CreateObject("Scripting.FileSystemObject")
-        '         fsys.MoveFile(myPath & "\" & myCopiedData & "\" & sR24PartNames(j), myPath & "\" & mySaveDir & "\" & sR24PartNames(j))
-        '         'UPGRADE_NOTE: Object fsys may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
-        '         fsys = Nothing
-        '         Next
-        '         'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-        '         CATIA.StatusBar = "Done"
-        '         'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-        '         myWorksheet.Cells(1, 1).Select()
-        '         myExcel.DisplayAlerts = False
-        '         ' Save Template file to Data Directory
-        '         sFileName = myPath & "\Cad Info.xlsx"
-        '         myWorkbook.SaveAs(sFileName)
-        '         'UPGRADE_WARNING: Couldn't resolve default property of object I. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-        '         I = MsgBox("Saved as " & sFileName & vbCr & "Type OK to Open", MsgBoxStyle.Information + MsgBoxStyle.OKCancel, "Project Estimating Done")
-        '         Dim strAction As String
-        '         Dim lngErr As Integer
-        '         If I = MsgBoxResult.Cancel Then
-        '             myWorkbook.Close()
-        '             myExcel.Quit()
-        '             'myExcel = Nothing
-        '         Else
-        '             myWorkbook.Close()
-        '             myExcel.Quit()
-        '             myExcel.Quit()
-        '             strAction = "OPEN" ' action might be OPEN, NEW or other, depending on what you need to do
-        '             lngErr = ShellExecute(0, strAction, sFileName, "", "", 0)
-        '         End If
-        '         End
+        myDoc.Close()
+    Else
+        If iType = 2 Then
+            myDoc.ExportData myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".igs", "igs"
+        End If
+        If iType = 3 And boolStep = True Then
+            myDoc.ExportData myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".stp", "stp"
+            myDoc.SaveAs myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".CATPart"
+        Else
+            'UPGRADE_NOTE: Object myProductDoc1 may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+            myProductDoc1 = Nothing
+            'UPGRADE_NOTE: Object myPartDoc1 may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+            myPartDoc1 = Nothing
+            myPart.Update()
+
+
+            ' j1 = 0
+            ' Do
+            '     j1 = j1 + 1
+
+
+            ' Loop While j <= myPart.Bodies.Count
+
+
+            'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            ' For jj = 1 To CATIA.Documents.Count
+            jj = 0
+            Do
+                jj = jj + 1
+
+                'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                If InStr(1, CATIA.Documents.Item(jj).Name, ".CATProduct") > 0 Then
+                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myProductDoc1 = CATIA.Documents.Item(jj)
+                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myProductDoc1.SaveAs(myPath & "\" & mySaveDir & "\" & CATIA.Documents.Item(jj).Name)
+                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                ElseIf InStr(1, CATIA.Documents.Item(jj).Name, ".CATPart") > 0 And InStr(1, CATIA.Documents.Item(jj).Name, ".CATPart.CATPart") <= 0 Then
+                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myPartDoc1 = CATIA.Documents.Item(jj)
+                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myPartDoc1.SaveAs(myPath & "\" & mySaveDir & "\" & CATIA.Documents.Item(jj).Name)
+                End If
+                ' Next
+            Loop While jj <= CATIA.Documents.Count
+            ' On Error Resume Next
+            If Not myPartDoc1 Is Nothing Then
+                myDoc.SaveAs(myPath & "\" & mySaveDir & "\" & myPart.Name & ".CATPart")
+            End If
+            If Not myProductDoc1 Is Nothing Then
+                myProductDoc1.Close()
+            End If
+            If Not myPartDoc1 Is Nothing Then
+                myPartDoc1.Close()
+            End If
+            On Error GoTo 0
+        End If
+        ' On Error Resume Next
+        myPartDocument.Close()
+        On Error GoTo 0
+    End If
+    '  Duplicate:
+    '         'UPGRADE_WARNING: Dir has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+    '     sFileName = Dir() ' get Next file
+    '         Loop
+    ' ' End Loop
+    ' Next
+    ' ' Move R24 Step Files to Translated
+    ' For j = 1 To iCnt
+    '     sR24PartNames(j) = Replace(sR24PartNames(j), "CATPart", "stp")
+    '     fsys = CreateObject("Scripting.FileSystemObject")
+    '     fsys.MoveFile(myPath & "\" & myCopiedData & "\" & sR24PartNames(j), myPath & "\" & mySaveDir & "\" & sR24PartNames(j))
+    '     'UPGRADE_NOTE: Object fsys may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+    '     fsys = Nothing
+    '     Next
+    '     'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    '     CATIA.StatusBar = "Done"
+    '     'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    '     myWorksheet.Cells(1, 1).Select()
+    '     myExcel.DisplayAlerts = False
+    '     ' Save Template file to Data Directory
+    '     sFileName = myPath & "\Cad Info.xlsx"
+    '     myWorkbook.SaveAs(sFileName)
+    '     'UPGRADE_WARNING: Couldn't resolve default property of object I. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    '     I = MsgBox("Saved as " & sFileName & vbCr & "Type OK to Open", MsgBoxStyle.Information + MsgBoxStyle.OKCancel, "Project Estimating Done")
+    '     Dim strAction As String
+    '     Dim lngErr As Integer
+    '     If I = MsgBoxResult.Cancel Then
+    '         myWorkbook.Close()
+    '         myExcel.Quit()
+    '         'myExcel = Nothing
+    '     Else
+    '         myWorkbook.Close()
+    '         myExcel.Quit()
+    '         myExcel.Quit()
+    '         strAction = "OPEN" ' action might be OPEN, NEW or other, depending on what you need to do
+    '         lngErr = ShellExecute(0, strAction, sFileName, "", "", 0)
+    '     End If
+    '     End
 End Sub
 
 
