@@ -133,8 +133,11 @@ Sub Process()
 
     ' Evalute the Axis System Directions
     originCoord = Array(0,0,0)
+    Dim Filter(1)
+    Filter(0) = "Body"
+    Filter(1) = "HybridBody"
 
-    Filter = Array("Body","HybridBody")
+    ' Filter = Array("Body","HybridBody")
 
     For Each oFile in oFolder.Files
 

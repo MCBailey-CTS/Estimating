@@ -1,64 +1,1557 @@
 Language="VBSCRIPT"
 
-Sub CATMain()
-    Dim oSel as Selection
-    Set oSel = CATIA.ActiveDocument.selection
-    Dim theObjectRef As Object
-    Dim theHSF As Object
-
-    oSel.Clear()
-
-    Dim F_Body as object
-
-    Dim Filter(1)
-    Filter(0)="Body"
-    Filter(1)="HybridBody"
-
-    F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
+Dim mainDirectory as String
 
 
-    Dim part As Part
-    Set part = CATIA.ActiveDocument
+Dim fileName as String
+Dim dotIndex As Integer
+Dim fileLeaf As String
+Dim dataExtension As String
 
-    Dim myBodyPart As Part
-    Set myBodyPart = CATIA.ActiveDocument
+Dim catDest As String
+Dim stpDest As String
+Dim igsDest As String
+Dim igsPath As String
+Dim stpPath As String
+Dim photosPath As String
+Dim translateIgsPath As Stringx
+Dim translateStpPath As String
+Dim translateCatPath As String
 
-    Dim body As body
+Dim catPath as String
+Dim myExcel As Microsoft.Office.Interop.Excel.Application
+
+Dim translateDirectory As String
+Dim suppliedDirectory As String
+Dim photosDirectory As String
+Dim iRow As Integer
+Dim objFSO As Object
+Dim oFolder As Object
+
+
+
+Function DisplayPart() As Part
+    Select Case TypeName(CATIA.ActiveDocument)
+     Case "PartDocument"
+        Set DisplayPart = CATIA.ActiveDocument.Part
+
+    End Select
+
+
+End Function
+
+Function DisplayDocument() As Document
+    Set DisplayDocument= CATIA.ActiveDocument
+End Function
+
+
+Sub CATMain1111()
+
+    ' MsgBox TypeName(DisplayPart())
+
+    ' Return
+
+    CATIA.DisplayFileAlerts = False
+
+    ' Dim mainDirectory as String
+    mainDirectory = "C:\Estimating\Project_Estimating"
+
+    Set objFSO = Createobject("Scripting.FileSystemObject")
+
+
+
+    translateDirectory = mainDirectory & "\TSG - Translated Data"
+
+    suppliedDirectory = mainDirectory & "\Supplied Cad Data"
+
+    photosDirectory = mainDirectory & "\Photos"
+
+
+
+    objFSO.CreateFolder(translateDirectory)
+    objFSO.CreateFolder(suppliedDirectory)
+    objFSO.CreateFolder(photosDirectory)
+    objFSO.CopyFile "C:\Catia\Project_Estimating\CAD Info.xlsx", mainDirectory & "\CAD Info.xlsx"
 
 
 
 
-    MsgBox TypeName(oSel.Item(1).Value)
 
-    If TypeName(oSel.Item(1)) = "SelectedElement" Then
-        Set body = osel.Item(1).Value
+    Set myExcel = CreateObject("Excel.Application")
 
-        ' MsgBox oSel.Count
-        ' TypeName(selectedItem)
+    myExcel.Workbooks.Open(mainDirectory & "\CAD Info.xlsx")
 
-        '     Set theHSF = CATIA.ActiveDocument.Part.HybridShapeFactory
-        ' Else
-        '     Set theHSF = CATIA.ActiveDocument.HybridShapeFactory
-    End If
+    Set myWorksheet = myExcel.Workbooks.Item(1).ActiveSheet
 
-    ' MsgBox TypeName(body.Value)
+    myExcel.Workbooks.Item(1).ActiveSheet.Columns("B:B").ColumnWidth = 20
 
-    If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
 
-        Set theHSF = CATIA.ActiveDocument.Part.HybridShapeFactory
-    Else
-        Set theHSF = CATIA.ActiveDocument.HybridShapeFactory
-    End If
+    iRow = 2
 
-    ' MsgBox TypeName(body)
-    If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
+    Set oFolder = objFSO.GetFolder(mainDirectory)
 
-        Dim partDocument As PartDocument
-        Set partDocument = CATIA.ActiveDocument
-        MsgBox TypeName(partDocument)
 
-        Set theObjectRef = CATIA.ActiveDocument.Part.CreateReferenceFromObject(body)
-    Else
-        Set theObjectRef = CATIA.ActiveDocument.CreateReferenceFromObject(body)
-    End If
+    Process()
+    Process()
+
+    myExcel.Workbooks.Item(1).Save()
+    myExcel.Quit()
+    myExcel.Quit()
+
+
 End Sub
+
+Sub Process()
+
+
+    Dim aPoint As Object
+    Dim theEXRef As Object
+
+    Dim dResult(2) As Object
+    Dim ii, j As Short
+    Dim theExtremums(5)
+    Dim body As body
+    ' Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+    Dim theObjectRef As Object
+
+
+
+    ' Dim dataPath As String
+
+    ' Dim originCoord(2) As Object
+    ' Dim XAxisCoord(2) As Object
+    XAxisCoord = Array(1,0,0)
+    YAxisCoord = Array(0,1,0)
+    ZAxisCoord = Array(0,0,1)
+
+
+    Dim selectedObject As Object
+
+    ' Initialize the mins,maxs to impossible values
+    mins = Array( 100000, 100000, 100000)
+    maxs = Array( -100000, -100000, -100000)
+
+    ' Evalute the Axis System Directions
+    originCoord = Array(0,0,0)
+    Dim Filter(1)
+    Filter(0) = "Body"
+    Filter(1) = "HybridBody"
+
+    ' Filter = Array("Body","HybridBody")
+
+    For Each oFile in oFolder.Files
+
+        dataPath = oFile As String
+
+        fileName = LCase(oFile.Name)
+
+        dotIndex = InStrRev(fileName,".")
+
+        fileLeaf = LCase(Left(fileName,dotIndex - 1))
+
+        dataExtension = LCase(Mid(fileName, dotIndex))
+
+        If dataExtension = ".iges" Then
+            dataExtension = ".igs"
+
+            dataPath = mainDirectory & "\" & fileLeaf & ".igs"
+
+            objFSO.MoveFile oFile, dataPath
+        End If
+
+
+
+        catPath = mainDirectory & "\" & fileLeaf & ".catpart"
+
+        igsPath = mainDirectory & "\" & fileLeaf & ".igs"
+
+        stpPath = mainDirectory & "\" & fileLeaf & ".stp"
+
+        photosPath = photosDirectory & "\" & fileLeaf & ".bmp"
+
+        suppliedDataPath = suppliedDirectory & "\" & fileLeaf & dataExtension
+
+        translateIgsPath = translateDirectory & "\" & fileLeaf & ".igs"
+
+        translateStpPath = translateDirectory & "\" & fileLeaf & ".stp"
+
+        translateCatPath = translateDirectory & "\" & fileLeaf & ".catpart"
+
+        If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Or dataExtension = ".step"  Then
+
+            CATIA.Documents.Open(dataPath)
+
+            CATIA.ActiveWindow.ActiveViewer.Reframe
+
+        End If
+
+        If dataExtension = ".stp" Or dataExtension = ".step" Then
+
+            DisplayDocument().SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
+
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".igs", "igs"
+
+            stpDest = suppliedDataPath
+
+            catDest = translateCatPath
+
+            igsDest = translateIgsPath
+
+        End If
+
+        If dataExtension = ".igs" Then
+
+            DisplayDocument().SaveAs mainDirectory & "\" & fileLeaf & ".CATPart"
+
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
+
+            stpDest = translateStpPath
+
+            catDest = translateCatPath
+
+            igsDest = suppliedDataPath
+
+        End If
+
+        If dataExtension = ".catpart" Then
+
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".igs" , "igs"
+
+            DisplayDocument().ExportData mainDirectory & "\" & fileLeaf & ".stp", "stp"
+
+            stpDest = translateStpPath
+
+            catDest = suppliedDataPath
+
+            igsDest = translateIgsPath
+
+        End If
+
+        If dataExtension = ".catpart" Or dataExtension = ".igs" Or dataExtension = ".stp" Or dataExtension = ".step" Then
+
+            Dim oSel as Selection
+            Set oSel = DisplayDocument().selection
+
+            oSel.Clear()
+
+
+            F_Body = oSel.selectelement2(Filter, " Select Body in which you want to add", False)
+
+            If F_Body = "Normal" Then
+
+                CATIA.ActiveWindow.ActiveViewer.CaptureToFile catCaptureFormatBMP, photosPath
+
+                Dim part As Part
+                Set part = CATIA.ActiveDocument
+
+                Dim myBodyPart As Part
+
+                If TypeName(CATIA.ActiveDocument) = "PartDocument" Then
+                    Set part = CATIA.ActiveDocument.Part
+                Else
+                    Set part = CATIA.ActiveDocument
+                End If
+
+                Set myBodyPart = part
+
+                Set body = oSel.Item(1).Value
+
+                Set theHSF = myBodyPart.HybridShapeFactory As HybridShapeTypeLib.HybridShapeFactory
+
+                If TypeName(body) = "HybridBody" Then
+                    Set selectedObject = body.HybridShapes.Item(1)
+                Else
+                    set selectedObject = body
+                End If
+
+                Set theObjectRef = myBodyPart.CreateReferenceFromObject(selectedObject)
+
+
+
+
+                ' Make directions for X Y and Z
+
+                Set theXDir = theHSF.AddNewDirectionByCoord(originCoord(0) - XAxisCoord(0), originCoord(1) - XAxisCoord(1), originCoord(2) - XAxisCoord(2))
+
+                Set theYDir = theHSF.AddNewDirectionByCoord(originCoord(0) - YAxisCoord(0), originCoord(1) - YAxisCoord(1), originCoord(2) - YAxisCoord(2))
+
+                Set theZDir = theHSF.AddNewDirectionByCoord(originCoord(0) - ZAxisCoord(0), originCoord(1) - ZAxisCoord(1), originCoord(2) - ZAxisCoord(2))
+
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 0, 1
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 1, 0
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theYDir, theZDir, theXDir, 2, 1
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, 3, 0
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 4, 1
+                SetExtremes myBodyPart, theExtremums, theHSF, theObjectRef, theZDir, theXDir, theYDir, 5, 0
+
+                FindExtremes myBodyPart, theHSF, theExtremums, mins, maxs
+
+                ' Find Distance in X, Y, and Z and Convert to Inches
+                sXLength = FormatNumber(Int((((maxs(0) - mins(0)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                sYLength = FormatNumber(Int((((maxs(1) - mins(1)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                sZLength = FormatNumber(Int((((maxs(2) - mins(2)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+
+                FillOut  fileName, fileLeaf, sXLength, sYLength, sZLength
+
+                AddPicture  photosPath
+
+                iRow = iRow + 1
+
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".stp") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".stp", stpDest
+                End If
+
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".step") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".step", stpDest
+                End If
+
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".catpart") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".catpart", catDest
+                End If
+
+                If objFSO.FileExists(mainDirectory & "\" & fileLeaf & ".igs") Then
+                    objFSO.MoveFile  mainDirectory & "\" & fileLeaf & ".igs", igsDest
+                End If
+
+            End If
+
+            CATIA.ActiveWindow.Close()
+        End If
+
+        Next
+End Sub
+
+Sub FindExtremes(myBodyPart, theHSF, theExtremums,  mins, maxs)
+    Dim dCoords(2) as Object
+    For ii = 0 To 5
+        Set theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
+        Set aPoint = theHSF.AddNewPointDatum(theEXRef)
+        aPoint.Compute()
+        aPoint.GetCoordinates(dCoords)
+        For j = 0 To 2
+            If dCoords(j) < mins(j) Then
+                mins(j) = dCoords(j)
+            End If
+            If dCoords(j) > maxs(j) Then
+                maxs(j) = dCoords(j)
+            End If
+            Next
+            Next
+End Sub
+
+Sub SetExtremes(myBodyPart,theExtremums, theHSF, theObjectRef, theXDir, theYDir, theZDir, i, other)
+
+    ' Construct some extremums and check the coordinates against the mins/maxs
+    Set theExtremums(i) =theHSF.AddNewExtremum(theObjectRef, theXDir, other)
+    theExtremums(i).Direction2 = theYDir
+    theExtremums(i).ExtremumType2 = 1
+    theExtremums(i).Direction3 = theZDir
+    theExtremums(i).ExtremumType3 = 1
+    myBodyPart.UpdateObject(theExtremums(i))
+
+End Sub
+Sub FillOut( fileName As String, fileLeaf As String, length As Integer, width As Integer, height As Integer)
+
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 18).RowHeight = 80
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 18).Value = fileLeaf & ".bmp"
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 1).Value = iRow - 1
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 3).Value = fileName
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 4).Value = fileLeaf
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 6).Value = length
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 7).Value = width
+
+    myExcel.Workbooks.Item(1).ActiveSheet.Cells(iRow, 8).Value = height
+End Sub
+
+
+Sub AddPicture(photosPath As String)
+
+    Set oPicture = myExcel.ActiveSheet.Shapes.AddPicture(photosPath, False, True, 1, 1, 100, 75)
+    With oPicture
+        .Left = myExcel.ActiveSheet.Cells(iRow, 2).Left
+        .Top = myExcel.ActiveSheet.Cells(iRow, 2).Top
+        .Placement = 1
+    End With
+
+End Sub
+
+Sub GetParams(ByRef myPart As MECMOD.Part, ByRef myProd As ProductStructureTypeLib.Product, ByRef sMatl As String, ByRef myThickness As String, ByRef sPartName As String)
+    Dim myParameters As Object 'As Parameters
+    myParameters = myPart.Parameters
+    Dim myParam As KnowledgewareTypeLib.Parameter
+    On Error Resume Next
+    myParam = myParameters.Item("Material")
+    If Err.Number = 0 Then
+        sMatl = myParam.ValueAsString
+    End If
+    On Error GoTo 0
+    Dim myProduct As ProductStructureTypeLib.Product
+    myParameters = myProd.UserRefProperties
+    On Error Resume Next
+    myParam = myParameters.Item("Material")
+    If Err.Number = 0 Then
+        sMatl = myParam.ValueAsString
+    End If
+    On Error GoTo 0
+    On Error Resume Next
+    myParam = myParameters.Item("Thickness")
+    If Err.Number = 0 Then
+        myThickness = myParam.ValueAsString
+    End If
+    On Error GoTo 0
+    sPartName = myProd.Nomenclature
+End Sub
+
+
+'------------------------------------------------------------------------------
+' Find the Extents of the Stock body by building Extremums in TEMP body
+' Use smartVolume to find PartBody Volume in 'in3'
+'Private Sub FindBoundingBoxXYZ(myBodyPart As Part, iBody As Integer, sXLength As String, sYLength As String, sZLength As String, sVolume As String)
+Sub FindBoundingBoxXYZ(ByRef myBodyPart As MECMOD.Part, ByRef theStock As Object, ByRef sXLength As String, ByRef sYLength As String, ByRef sZLength As String, ByRef sVolume As String)
+    Dim sYMin As Object
+    Dim sXMin As Object
+    Dim myHBShape As Object
+
+    Dim nShapes As Short
+    sXLength = "0.0"
+    sYLength = "0.0"
+    sZLength = "0.0"
+    sVolume = "0.0"
+    nShapes = 0
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    mySelection = CATIA.ActiveDocument.Selection
+    mySelection.Clear()
+    Dim mySel As Object
+    Dim sAnswer As String
+    'UPGRADE_NOTE: filter was upgraded to filter_Renamed. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="A9E4979A-37FA-4718-9994-97DD76ED70A7"'
+    Dim filter_Renamed(1) As Object
+    'UPGRADE_WARNING: Couldn't resolve default property of object filter_Renamed(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    filter_Renamed(0) = "Body"
+    'UPGRADE_WARNING: Couldn't resolve default property of object filter_Renamed(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    filter_Renamed(1) = "HybridBody"
+    If myBodyPart Is Nothing Then
+        'do one selection of Part Body
+        MsgBox "Select the Part Body, or UNDO to Cancel", MsgBoxStyle.Information, "Part Body Selection"
+        mySel = mySelection
+        'UPGRADE_WARNING: Couldn't resolve default property of object mySel.SelectElement2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        sAnswer = mySel.SelectElement2(filter_Renamed, "Select the PartBody, or select UNDO to cancel", True)
+        If sAnswer = "Undo" Or sAnswer = "Cancel" Then
+            MsgBox "You have chosen to cancel this operation. The program will continue without calculating the size.", MsgBoxStyle.Exclamation, "Skip Size Operation"
+            Exit Sub
+        End If
+
+        theStock = mySelection.Item(1).Value
+        'UPGRADE_WARNING: Couldn't resolve default property of object theStock.Parent. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart = theStock.Parent.Parent
+    Else
+        'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+        If TypeName(theStock) = "HybridBody" Then
+            'UPGRADE_WARNING: Couldn't resolve default property of object theStock.HybridShapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            nShapes = theStock.HybridShapes.Count
+        Else
+            'UPGRADE_WARNING: Couldn't resolve default property of object theStock.Shapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            nShapes = theStock.Shapes.Count
+        End If
+        If nShapes = 0 Then
+            'do one selection of real Part Body
+            MsgBox "Select the Part Body, or UNDO to Cancel", MsgBoxStyle.Information, "Part Body Selection"
+            mySel = mySelection
+            'UPGRADE_WARNING: Couldn't resolve default property of object mySel.SelectElement2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            sAnswer = mySel.SelectElement2(filter_Renamed, "Select the PartBody, or select UNDO to cancel", True)
+            If sAnswer = "Undo" Or sAnswer = "Cancel" Then
+                MsgBox "You have chosen to cancel this operation. The program will continue without calculating the size.", MsgBoxStyle.Exclamation, "Skip Size Operation"
+                sXLength = "0.0"
+                sYLength = "0.0"
+                sZLength = "0.0"
+                sVolume = "0.0"
+                Exit Sub
+            End If
+
+            theStock = mySelection.Item(1).Value
+            'UPGRADE_WARNING: Couldn't resolve default property of object theStock.Parent. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            myBodyPart = theStock.Parent.Parent
+        End If
+    End If
+
+    ' Create reference of the Stock Body (must be Solid Body in NC Geo Part)
+    Dim theObjectRef As Object
+    On Error Resume Next
+    'UPGRADE_WARNING: Couldn't resolve default property of object theStock. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    theObjectRef = myBodyPart.CreateReferenceFromObject(theStock)
+    If Err.Number <> 0 Then
+        MsgBox "Main Body Not Found in " & myBodyPart.Name, MsgBoxStyle.Exclamation, "Body Selection Error"
+        Exit Sub
+    End If
+    On Error GoTo 0
+
+    Dim hCnt As Short
+    hCnt = 0
+    'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+    Dim x As Short
+    Dim myHBRef As INFITF.Reference
+    Dim myHBShapeFact As MECMOD.Factory
+    Dim myHBRef1 As INFITF.Reference
+    Dim myHBShapeAssemble As HybridShapeTypeLib.HybridShapeAssemble
+    If TypeName(theStock) = "HybridBody" Then
+        'UPGRADE_WARNING: Couldn't resolve default property of object theStock.HybridShapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        If theStock.HybridShapes.Count = 0 Then
+            Exit Sub
+        Else
+            ' Should be loop thru HybridShapeSurfaceExplicit surfaces - Pre-Select and Join references
+            ' Create reference from Join
+
+            'UPGRADE_WARNING: Couldn't resolve default property of object theStock.HybridShapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            For x = 1 To theStock.HybridShapes.Count
+                'UPGRADE_WARNING: Couldn't resolve default property of object theStock.HybridShapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                myHBShape = theStock.HybridShapes.Item(x)
+                'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                If TypeName(myHBShape) = "HybridShapeSurfaceExplicit" Then
+                    'UPGRADE_WARNING: Couldn't resolve default property of object myHBShape.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                    Debug.Print(TypeName(myHBShape) & "  " & myHBShape.Name)
+                    hCnt = hCnt + 1
+                    'UPGRADE_WARNING: Couldn't resolve default property of object myHBShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myHBRef = myBodyPart.CreateReferenceFromObject(myHBShape)
+                    If hCnt = 1 Then
+                        myHBShapeFact = myBodyPart.HybridShapeFactory
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myHBShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        myHBRef1 = myBodyPart.CreateReferenceFromObject(myHBShape)
+                    ElseIf hCnt = 2 Then
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myHBShapeFact.AddNewJoin. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        myHBShapeAssemble = myHBShapeFact.AddNewJoin(myHBRef1, myHBRef)
+                    Else
+                        myHBShapeAssemble.AddElement(myHBRef)
+                    End If
+
+                End If
+                Next
+                If hCnt > 1 Then
+                    myHBShapeAssemble.SetConnex(0)
+                    myHBShapeAssemble.SetManifold(0)
+                    myHBShapeAssemble.SetSimplify(0)
+                    myHBShapeAssemble.SetSuppressMode(0)
+                    myHBShapeAssemble.SetDeviation(0.001)
+                    myHBShapeAssemble.SetAngularToleranceMode(0)
+                    myHBShapeAssemble.SetAngularTolerance(0.5)
+                    myHBShapeAssemble.SetFederationPropagation(0)
+                    'UPGRADE_WARNING: Couldn't resolve default property of object theStock.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    theStock.AppendHybridShape(myHBShapeAssemble)
+                    'UPGRADE_WARNING: Couldn't resolve default property of object myHBShapeAssemble. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    myBodyPart.InWorkObject = myHBShapeAssemble
+                    myBodyPart.Update()
+                    'UPGRADE_WARNING: Couldn't resolve default property of object myHBShapeAssemble. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    theObjectRef = myBodyPart.CreateReferenceFromObject(myHBShapeAssemble)
+                Else
+                    'UPGRADE_WARNING: Couldn't resolve default property of object theStock.HybridShapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    theObjectRef = myBodyPart.CreateReferenceFromObject(theStock.HybridShapes.Item(1))
+                End If
+            End If
+        Else
+            'UPGRADE_WARNING: Couldn't resolve default property of object theStock.Shapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            If theStock.Shapes.Count = 0 Then
+                Exit Sub
+            End If
+        End If
+
+        ' Initialize the mins,maxs to impossible values
+        Dim mins(2) As Object
+        Dim maxs(2) As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object mins(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        mins(0) = 100000
+        'UPGRADE_WARNING: Couldn't resolve default property of object mins(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        mins(1) = 100000
+        'UPGRADE_WARNING: Couldn't resolve default property of object mins(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        mins(2) = 100000
+        'UPGRADE_WARNING: Couldn't resolve default property of object maxs(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        maxs(0) = -100000
+        'UPGRADE_WARNING: Couldn't resolve default property of object maxs(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        maxs(1) = -100000
+        'UPGRADE_WARNING: Couldn't resolve default property of object maxs(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        maxs(2) = -100000
+
+        ' Add a temporary body for points (TEMP body can be deleted)
+        Dim tempBody As Object
+        tempBody = myBodyPart.HybridBodies.Add()
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.Name = "TEMP"
+
+        'get the HybridShapeFactory
+        Dim theHSF As HybridShapeTypeLib.HybridShapeFactory
+        theHSF = myBodyPart.HybridShapeFactory
+
+        ' Evalute the Axis System Directions
+        Dim originCoord(2) As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        originCoord(0) = 0
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        originCoord(1) = 0
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        originCoord(2) = 0
+
+        Dim XAxisCoord(2) As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object XAxisCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        XAxisCoord(0) = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object XAxisCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        XAxisCoord(1) = 0
+        'UPGRADE_WARNING: Couldn't resolve default property of object XAxisCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        XAxisCoord(2) = 0
+
+        Dim YAxisCoord(2) As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object YAxisCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        YAxisCoord(0) = 0
+        'UPGRADE_WARNING: Couldn't resolve default property of object YAxisCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        YAxisCoord(1) = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object YAxisCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        YAxisCoord(2) = 0
+
+        Dim ZAxisCoord(2) As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object ZAxisCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        ZAxisCoord(0) = 0
+        'UPGRADE_WARNING: Couldn't resolve default property of object ZAxisCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        ZAxisCoord(1) = 0
+        'UPGRADE_WARNING: Couldn't resolve default property of object ZAxisCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        ZAxisCoord(2) = 1
+
+        ' Make directions for X Y and Z
+        Dim theXDir As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object XAxisCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object XAxisCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object XAxisCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theXDir = theHSF.AddNewDirectionByCoord(originCoord(0) - XAxisCoord(0), originCoord(1) - XAxisCoord(1), originCoord(2) - XAxisCoord(2))
+
+        Dim theYDir As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object YAxisCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object YAxisCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object YAxisCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theYDir = theHSF.AddNewDirectionByCoord(originCoord(0) - YAxisCoord(0), originCoord(1) - YAxisCoord(1), originCoord(2) - YAxisCoord(2))
+
+        Dim theZDir As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object ZAxisCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object ZAxisCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object ZAxisCoord(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object originCoord(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theZDir = theHSF.AddNewDirectionByCoord(originCoord(0) - ZAxisCoord(0), originCoord(1) - ZAxisCoord(1), originCoord(2) - ZAxisCoord(2))
+
+        ' Construct some extremums and check the coordinates against the mins/maxs
+        Dim theExtremums(5) As Object
+        'UPGRADE_WARNING: Couldn't resolve default property of object theXDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theObjectRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(0) = theHSF.AddNewExtremum(theObjectRef, theXDir, 1)
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theYDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(0).Direction2 = theYDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(0).ExtremumType2 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theZDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(0).Direction3 = theZDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(0).ExtremumType3 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.AppendHybridShape(theExtremums(0))
+        On Error Resume Next
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart.UpdateObject(theExtremums(0))
+        If Err.Number <> 0 Then
+            mySelection.Clear()
+            'UPGRADE_WARNING: Couldn't resolve default property of object tempBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            mySelection.Add(tempBody)
+            'UPGRADE_WARNING: Couldn't resolve default property of object myHBShapeAssemble. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            If hCnt > 1 Then
+                mySelection.Add(myHBShapeAssemble)
+            End If
+            mySelection.Delete()
+            Exit Sub
+        End If
+        On Error GoTo 0
+
+        'UPGRADE_WARNING: Couldn't resolve default property of object theXDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theObjectRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(1) = theHSF.AddNewExtremum(theObjectRef, theXDir, 0)
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theYDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(1).Direction2 = theYDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(1).ExtremumType2 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theZDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(1).Direction3 = theZDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(1).ExtremumType3 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.AppendHybridShape(theExtremums(1))
+        On Error Resume Next
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart.UpdateObject(theExtremums(1))
+
+        'UPGRADE_WARNING: Couldn't resolve default property of object theYDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theObjectRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(2) = theHSF.AddNewExtremum(theObjectRef, theYDir, 1)
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theZDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(2).Direction2 = theZDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(2).ExtremumType2 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theXDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(2).Direction3 = theXDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(2).ExtremumType3 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.AppendHybridShape(theExtremums(2))
+        On Error Resume Next
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart.UpdateObject(theExtremums(2))
+        On Error GoTo 0
+
+        'UPGRADE_WARNING: Couldn't resolve default property of object theYDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theObjectRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(3) = theHSF.AddNewExtremum(theObjectRef, theYDir, 0)
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theZDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(3).Direction2 = theZDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(3).ExtremumType2 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theXDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(3).Direction3 = theXDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(3).ExtremumType3 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.AppendHybridShape(theExtremums(3))
+        On Error Resume Next
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart.UpdateObject(theExtremums(3))
+        On Error GoTo 0
+
+        'UPGRADE_WARNING: Couldn't resolve default property of object theZDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theObjectRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(4) = theHSF.AddNewExtremum(theObjectRef, theZDir, 1)
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theXDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(4).Direction2 = theXDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(4).ExtremumType2 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theYDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(4).Direction3 = theYDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(4).ExtremumType3 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.AppendHybridShape(theExtremums(4))
+        On Error Resume Next
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart.UpdateObject(theExtremums(4))
+        On Error GoTo 0
+
+        'UPGRADE_WARNING: Couldn't resolve default property of object theZDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theObjectRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(5) = theHSF.AddNewExtremum(theObjectRef, theZDir, 0)
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theXDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(5).Direction2 = theXDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType2. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(5).ExtremumType2 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().Direction3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        'UPGRADE_WARNING: Couldn't resolve default property of object theYDir. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(5).Direction3 = theYDir
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums().ExtremumType3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        theExtremums(5).ExtremumType3 = 1
+        'UPGRADE_WARNING: Couldn't resolve default property of object tempBody.AppendHybridShape. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        tempBody.AppendHybridShape(theExtremums(5))
+        On Error Resume Next
+        'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myBodyPart.UpdateObject(theExtremums(5))
+        On Error GoTo 0
+
+        Dim aPoint As Object
+        Dim theEXRef As Object
+        Dim dCoords(2) As Object
+        Dim dResult(2) As Object
+        Dim ii, j As Short
+        For ii = 0 To 5
+            'UPGRADE_WARNING: Couldn't resolve default property of object theExtremums(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            theEXRef = myBodyPart.CreateReferenceFromObject(theExtremums(ii))
+            On Error Resume Next
+            'UPGRADE_WARNING: Couldn't resolve default property of object theEXRef. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            aPoint = theHSF.AddNewPointDatum(theEXRef)
+            'UPGRADE_WARNING: Couldn't resolve default property of object aPoint.Compute. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            aPoint.Compute()
+            'UPGRADE_WARNING: Couldn't resolve default property of object aPoint.GetCoordinates. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            aPoint.GetCoordinates(dCoords)
+            On Error GoTo 0
+            'Debug.Print "Point (" & ii & ") = " & dCoords(0) & " , " & dCoords(1) & " , " & dCoords(2)
+            For j = 0 To 2
+                'UPGRADE_WARNING: Couldn't resolve default property of object mins(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object dCoords(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                If dCoords(j) < mins(j) Then
+                    'UPGRADE_WARNING: Couldn't resolve default property of object dCoords(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    'UPGRADE_WARNING: Couldn't resolve default property of object mins(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    mins(j) = dCoords(j)
+                End If
+                'UPGRADE_WARNING: Couldn't resolve default property of object maxs(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object dCoords(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                If dCoords(j) > maxs(j) Then
+                    'UPGRADE_WARNING: Couldn't resolve default property of object dCoords(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    'UPGRADE_WARNING: Couldn't resolve default property of object maxs(j). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                    maxs(j) = dCoords(j)
+                End If
+                Next
+                Next
+
+                ' Find Distance in X, Y, and Z and Convert to Inches
+                'UPGRADE_WARNING: Couldn't resolve default property of object mins(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object maxs(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sXLength = FormatNumber(Int((((maxs(0) - mins(0)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                'UPGRADE_WARNING: Couldn't resolve default property of object mins(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object maxs(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sYLength = FormatNumber(Int((((maxs(1) - mins(1)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                'UPGRADE_WARNING: Couldn't resolve default property of object mins(2). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object maxs(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sZLength = FormatNumber(Int((((maxs(2) - mins(2)) / 25.4) + 0.125) / 0.125) * 0.125, 3)
+                'UPGRADE_WARNING: Couldn't resolve default property of object mins(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object sXMin. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sXMin = FormatNumber(System.Math.Abs(mins(0)) / 25.4, 3)
+                'UPGRADE_WARNING: Couldn't resolve default property of object mins(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                'UPGRADE_WARNING: Couldn't resolve default property of object sYMin. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sYMin = FormatNumber(System.Math.Abs(mins(1)) / 25.4, 3)
+
+                Dim myBodyName As String
+                'UPGRADE_WARNING: Couldn't resolve default property of object theStock.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                myBodyName = theStock.Name
+                Dim myPartParams As Object 'As Parameters
+                myPartParams = myBodyPart.Parameters
+                Dim myVolume As KnowledgewareTypeLib.Dimension
+                On Error Resume Next
+                'UPGRADE_WARNING: Couldn't resolve default property of object myPartParams.CreateDimension. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                myVolume = myPartParams.CreateDimension("Volume", "VOLUME", 0)
+                Dim myVolumeRel As KnowledgewareTypeLib.Relation
+                Dim myRels As KnowledgewareTypeLib.Relations
+                myRels = myBodyPart.Relations
+                'UPGRADE_WARNING: Couldn't resolve default property of object myVolume. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                myVolumeRel = myRels.CreateFormula("VolumeFormula", "", myVolume, "smartVolume(`" & myBodyName & "`)")
+                sVolume = Replace(CStr(myVolume.ValueAsString), "in3", "")
+                If InStr(sVolume, "mm3") > 0 Then
+                    sVolume = VB.Left(sVolume, Len(sVolume) - 3)
+                    sVolume = CStr(CDbl(sVolume) / 16387)
+                ElseIf InStr(sVolume, "m3") > 0 Then
+                    sVolume = VB.Left(sVolume, Len(sVolume) - 2)
+                    sVolume = CStr(CDbl(sVolume) / 16.387)
+                End If
+ Delete:
+                mySelection.Clear()
+                'UPGRADE_WARNING: Couldn't resolve default property of object tempBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                mySelection.Add(tempBody)
+                'UPGRADE_WARNING: Couldn't resolve default property of object myHBShapeAssemble. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                If hCnt > 1 Then
+                    mySelection.Add(myHBShapeAssemble)
+                End If
+                mySelection.Delete()
+
+End Sub
+
+' Take a Snapshot of Part in smaller Catia Window
+Sub Snapshot(ByRef sFileName As String, ByRef sX As String, ByRef sY As String, ByRef sZ As String, ByRef myMass As Double, ByRef myName As String, ByRef sPicture As String)
+    Dim sLastPicture As Object
+    Dim rando As Object
+    'Shut off file alerts (to stop warnings about overwriting filenames)
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.DisplayFileAlerts. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.DisplayFileAlerts = False
+    '=================Save JPG File=========================
+    Dim myViewer As Object 'As Viewer
+    Dim myWin As INFITF.SpecsAndGeomWindow
+    Dim color(2) As Object
+    Dim myHeight, myWidth As Integer
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveWindow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer = CATIA.ActiveWindow.ActiveViewer
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveWindow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myWin = CATIA.ActiveWindow
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.GetBackgroundColor. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.GetBackgroundColor(color)
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StartCommand. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.StartCommand("CompassDisplayOff")
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StartCommand. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.StartCommand("* iso")
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Viewpoint3D. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Viewpoint3D = CATIA.ActiveDocument.Cameras.Item(1)
+
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Update. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Update()
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Reframe. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Reframe()
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.ZoomIn. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.ZoomIn()
+
+    myHeight = myWin.Height
+    myWidth = myWin.Width
+    Debug.Print(myWin.Top & "  " & myWin.Left)
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.RefreshDisplay. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.RefreshDisplay = True
+    System.Windows.Forms.Application.DoEvents()
+    On Error Resume Next
+    myWin.Layout = INFITF.CatSpecsAndGeomWindowLayout.catWindowGeomOnly
+    On Error GoTo 0
+
+    myWin.Top = 30
+    myWin.Left = 10
+    myWin.Height = 600
+    myWin.Width = 800
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Reframe. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Reframe()
+    'UPGRADE_WARNING: Array has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.PutBackgroundColor. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.PutBackgroundColor(Array(1, 1, 1))
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StartCommand. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.StartCommand("Fit All In")
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StartCommand. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.StartCommand("Zoom In")
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Update. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Update()
+    System.Windows.Forms.Application.DoEvents()
+    If chkAuto.CheckState = 0 Then
+        MsgBox "The Part Weight is " & myMass & "lb" & vbCrLf & "The X Length is :  " & sX & vbCrLf & "The Y Length is :  " & sY & vbCrLf & "The Z Length is :  " & sZ & vbCrLf & vbCrLf & "Rotate Iso View for Snapshot", MsgBoxStyle.Information, "Part Size of " & myName
+    End If
+    Dim sPictureName, sPicturePath As String
+    sPictureName = Mid(sFileName, InStrRev(sFileName, "\") + 1, 99)
+    sPicturePath = Mid(sFileName, 1, InStrRev(sFileName, "\"))
+    sPictureName = Replace(sPictureName, ",", "")
+    sPictureName = Replace(sPictureName, "|", "_")
+
+
+
+    intNumber = Int((500 - 1 + 1) * Rnd + 1)
+    'UPGRADE_ISSUE: The preceding line couldn't be parsed. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="82EBB1AE-1FCB-4FEF-9E6C-8736A316F8A7"'
+
+    rando()
+    String rando = intNumber
+    'UPGRADE_ISSUE: The preceding line couldn't be parsed. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="82EBB1AE-1FCB-4FEF-9E6C-8736A316F8A7"'
+
+    If Len(sPictureName) > 22 Then
+        'UPGRADE_WARNING: Couldn't resolve default property of object rando. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        sPicture = sPicturePath & Mid(sPictureName, 1, 22) & rando & ".bmp"
+    Else
+        'UPGRADE_WARNING: Couldn't resolve default property of object rando. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        sPicture = sFileName & rando & ".bmp"
+    End If
+    ' Check if File Exists
+    Dim fso As Scripting.FileSystemObject
+    Dim iLastNumb As Short
+    fso = New Scripting.FileSystemObject
+    Do
+        If fso.FileExists(sPicture) Then
+            iLastNumb = iLastNumb + 1
+            If Len(sPictureName) > 22 Then
+                'UPGRADE_WARNING: Couldn't resolve default property of object rando. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sPicture = sPicturePath & Mid(sPictureName, 1, 19) & rando & "(" & iLastNumb & ").bmp"
+            Else
+                'UPGRADE_WARNING: Couldn't resolve default property of object rando. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                sPicture = sFileName & rando & "(" & iLastNumb & ").bmp"
+            End If
+        End If
+    Loop Until fso.FileExists(sPicture) = False
+    'UPGRADE_NOTE: Object fso may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+    fso = Nothing
+
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.CaptureToFile. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.CaptureToFile NFITF.CatCaptureFormat.catCaptureFormatBMP, sPicture
+    'UPGRADE_WARNING: Couldn't resolve default property of object sLastPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    sLastPicture = sPicture
+
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Update. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Update()
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.PutBackgroundColor. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.PutBackgroundColor(color)
+    myWin.Layout = INFITF.CatSpecsAndGeomWindowLayout.catWindowSpecsAndGeom
+    myWin.Height = myHeight
+    myWin.Width = myWidth
+    myWin.Top = -1
+    myWin.Left = -1
+    '=======================================================
+    'UPGRADE_WARNING: Couldn't resolve default property of object myViewer.Viewpoint3D. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myViewer.Viewpoint3D = CATIA.ActiveDocument.Cameras.Item(1)
+    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveWindow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    CATIA.ActiveWindow.ActiveViewer.Reframe()
+    System.Windows.Forms.Application.DoEvents()
+End Sub
+
+Private Sub CATMain()
+
+    MsgBox "hello worls"
+    Exit Sub
+    Dim I As Object
+    Dim fs As Object
+    Dim sPicture As Object
+    Dim myBodyPart As Object
+    Dim sAnswer As Object
+    Dim mySel As Object
+    Dim iRet As Object
+    Dim myWorksheet As Object
+
+    ' Select the Step File Directory
+    Dim myPath As String
+    myPath = dirList.Path
+
+    If myPath = "" Then
+        Exit Sub
+    End If
+
+    ' Loop thur the Catia, Step, and IGES Files
+    Dim sFileName, sPath As String
+    Dim strDirSearch As String
+    Dim sDirName As String
+    sDirName = Mid(myPath, InStrRev(myPath, "\") + 1)
+
+    ' Define Dir to Save files from Catia
+    Dim mySaveDir As String
+    mySaveDir = "TSG - Translated Data"
+    Dim myCopiedData As String
+    myCopiedData = "Supplied CAD"
+
+    ' Excel
+    Dim myExcel As Microsoft.Office.Interop.Excel.Application
+    'UPGRADE_WARNING: Lower bound of array myPartNames was changed from 1 to 0. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="0F1C9BE1-AF9D-476E-83B1-17D43BECFF20"'
+    Dim myPartNames(888) As String
+    'UPGRADE_WARNING: Lower bound of array myFileNames was changed from 1 to 0. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="0F1C9BE1-AF9D-476E-83B1-17D43BECFF20"'
+    Dim myFileNames(888) As String
+    Dim iCnt As Short ' R24 Part Count
+    'UPGRADE_WARNING: Lower bound of array sR24PartNames was changed from 1 to 0. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="0F1C9BE1-AF9D-476E-83B1-17D43BECFF20"'
+    Dim sR24PartNames(99) As String
+    Dim iPartCnt As Short ' Count of PartNames
+    Dim myMass As Double
+    Dim myPartNumber As String
+    Dim j As Short
+    Dim nBodys As Short ' Number of Bodies to process
+    Dim iBody As Short ' Current body to process
+    Dim iRow As Short
+    ' Open Excel Output file Template
+    myExcel = CreateObject("Excel.Application")
+    myExcel.Workbooks.Open(sDefaultExcelTemplate)
+    Dim myWorkbook As Microsoft.Office.Interop.Excel.Workbook
+    myWorkbook = myExcel.Workbooks.Item(1)
+    myWorkbook.Activate()
+    'UPGRADE_WARNING: Couldn't resolve default property of object myWorkbook.Sheets().Select. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myWorkbook.Sheets(1).Select()
+    ' Open the Excel Template and Update
+    myWorksheet = myWorkbook.ActiveSheet
+    'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Columns. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+    myWorksheet.Columns("B:B").ColumnWidth = 20
+    ' Uncomment this line to make Excel visible.
+    'myExcel.Visible = True
+    iRow = 2
+
+    Dim iType As Short
+    Dim fsys As Scripting.FileSystemObject
+    Dim myProductDoc As Object
+    Dim myPartDocument As Object
+    Dim myPart As MECMOD.Part
+    Dim myBody As MECMOD.Body
+    Dim myVisPropertySet As Object
+    Dim myVersion As String
+    Dim thisRev As Integer
+    Dim myProd As ProductStructureTypeLib.Product
+    Dim myShapes As MECMOD.Shapes
+    Dim myHBBody As MECMOD.HybridBody
+    Dim myHBShape As MECMOD.HybridShape
+    Dim x As Short
+    Dim selfilter(1) As Object
+    Dim hCnt As Short
+    Dim myOriginElements As MECMOD.OriginElements
+    Dim myHSPlaneExplicit As INFITF.AnyObject
+    Dim sZ, sX, sY, sVolume As String
+    Dim sPhotoFile As String
+    Dim myThickness, sMatl, sPartName As String
+    Dim oPicture As Object
+    Dim myDoc As INFITF.Document
+    Dim myProductDoc1 As ProductStructureTypeLib.ProductDocument
+    Dim myPartDoc1 As MECMOD.PartDocument
+    Dim jj As Short
+    'UPGRADE_WARNING: Lower bound of array myObjects was changed from 1 to 0. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="0F1C9BE1-AF9D-476E-83B1-17D43BECFF20"'
+    Dim myObjects(100) As Object 'As VisPropertySet
+    For iType = 1 To 3
+        If boolStep = False And iType = 2 Then iType = 3 ' Skip Step if no License
+            If iType = 1 Then
+                strDirSearch = myPath & "\" & "*.CATPart"
+                ' Create SnapShot Dir
+                On Error Resume Next
+                MkDir(myPath & "\" & mySaveDir)
+                MkDir(myPath & "\" & myCopiedData)
+                MkDir(myPath & "\Photos")
+                On Error GoTo 0
+            ElseIf iType = 2 Then
+                If iCnt > 0 Then ' Batch Process R24 parts into Step
+                    BatchConvertStep iCnt, sR24PartNames, myPath
+                    ' Move Original files to Supplied Data
+                    fsys = CreateObject("Scripting.FileSystemObject")
+                    For j = 1 To iCnt
+                        fsys.MoveFile myPath & "\" & sR24PartNames(j), myPath & "\" & myCopiedData & "\" & sR24PartNames(j)
+                        Next
+                        'UPGRADE_NOTE: Object fsys may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+                        fsys = Nothing
+                    End If
+                    strDirSearch = myPath & "\" & "*.stp"
+                ElseIf iType = 3 Then
+                    strDirSearch = myPath & "\" & "*.igs"
+                End If
+                'UPGRADE_WARNING: Dir has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                sFileName = Dir(strDirSearch)
+
+
+                Do Until Len(sFileName) <= 0
+
+                    If iType = 1 Then
+                        ' Check_Version(myPath, sFileName, myVersion)
+                        ' Skip for created in new Catia Version
+                        On Error Resume Next
+                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.SystemConfiguration. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        thisRev = CATIA.SystemConfiguration.Release
+                        ' If Err.Number = 91 Then thisRev = 22
+                        '     On Error GoTo 0
+                        '     If thisRev < CDbl(Mid(myVersion, 11, 2)) Then
+                        '         iCnt = iCnt + 1
+                        '         sR24PartNames(iCnt) = sFileName
+                        '         MsgBox(myPath & "\" & vbCrLf & sFileName & vbCrLf & "Is an " & myVersion & " CATPart - Skipping", MsgBoxStyle.Exclamation, "Version Error")
+                        '         GoTo Duplicate
+                        '     End If
+                        ' End If
+                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        CATIA.StatusBar = "Opening " & sFileName
+                        On Error Resume Next
+                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        myPartDocument = CATIA.Documents.Open(myPath & "\" & sFileName)
+                        If Err.Number <> 0 Then
+                            MsgBox "Error Opening " & sFileName & vbCrLf & "Error is " & Err.Number & " " & Err.Description, MsgBoxStyle.Critical, "File Open Error"
+                        End If
+                        On Error GoTo 0
+                        Wait4()
+                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.RefreshDisplay. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        CATIA.RefreshDisplay = True
+                        'CATIA.Visible = True
+                        'Wait4
+                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        myProductDoc = CATIA.ActiveDocument
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myProductDoc.Product. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        myProd = myProductDoc.Product
+                        'Debug.Print "Number of Products is " & myProd.Products.Count
+                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        CATIA.StatusBar = "Processing..."
+
+                        'UPGRADE_WARNING: Couldn't resolve default property of object myProductDoc.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                        If myProd.Products.Count = 0 And InStr(1, myProductDoc.Name, "CATPart") > 0 Then
+                            'UPGRADE_WARNING: Couldn't resolve default property of object myProductDoc.Part. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                            myPart = myProductDoc.Part
+                            myPart.Update()
+                            ' Check for Duplicate PartNames
+                            For j = 1 To iPartCnt
+                                If myPartNames(j) = myPart.Name And iCnt <= 0 Then
+                                    'UPGRADE_WARNING: Couldn't resolve default property of object myPartDocument.Close. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                    myPartDocument.Close()
+                                    MsgBox "duplicate issue you were having"
+                                    Exit Sub
+                                End If
+                                Next
+                                iPartCnt = iPartCnt + 1
+                                If iType >= 2 Then
+                                    myPartNames(iPartCnt) = VB.Left(sFileName, Len(sFileName) - 4)
+                                Else
+                                    myPartNames(iPartCnt) = myPart.Name
+                                End If
+
+                                'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                mySelection = CATIA.ActiveDocument.Selection
+                                mySelection.Clear()
+
+                                nBodys = 0
+                                mySelection.Clear()
+                                For j = 1 To myPart.Bodies.Count
+                                    myBody = myPart.Bodies.Item(j)
+                                    If myBody.Shapes.Count > 0 Then
+                                        nBodys = nBodys + 1
+                                        'UPGRADE_WARNING: Couldn't resolve default property of object myBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                        If iType = 1 Then
+                                            mySelection.Add(myBody)
+                                        End If
+                                        Next
+
+                                        For j = 1 To myPart.HybridBodies.Count
+                                            myHBBody = myPart.HybridBodies.Item(j)
+                                            If myHBBody.HybridShapes.Count > 0 Then
+                                                For x = 1 To myHBBody.HybridShapes.Count
+                                                    myHBShape = myHBBody.HybridShapes.Item(x)
+                                                    'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                                                    If TypeName(myHBShape) = "HybridShapeSurfaceExplicit" Then
+                                                        nBodys = nBodys + 1
+                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myHBBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                        If iType = 1 Then
+                                                            mySelection.Add(myHBBody)
+                                                            Exit For
+                                                        End If
+                                                        Next
+                                                    End If
+                                                    Next
+                                                    Debug.Print("Number of Bodies = " & nBodys)
+
+                                                    On Error Resume Next
+                                                    If nBodys > 1 Then
+                                                        If iType = 1 Then
+                                                            myVisPropertySet = mySelection.VisProperties
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
+                                                        End If
+                                                        ReFrameISO()
+
+                                                        arg0 = nBodys & " Bodies Found in " & myPart.Name & vbCrLf & "Yes to Multi Process all Bodies" & vbCrLf & "No to Select Geo Sets and Bodies"
+
+                                                        arg1 = MsgBoxStyle.YesNoCancel + MsgBoxStyle.DefaultButton1 + MsgBoxStyle.Information
+
+
+
+                                                        iRet = MsgBox (arg0, arg1, "Process Individual Bodies")
+                                                        If iRet = MsgBoxResult.Cancel Then
+                                                            nBodys = 1
+                                                        Else If iRet = MsgBoxResult.No Then
+                                                            mySelection.Clear()
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            selfilter(0) = "Body"
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            selfilter(1) = "HybridBody"
+                                                            MsgBox "Select the Part Bodys or GeoSets, then select the green ball to end the selection." & vbCrLf & "Or UNDO to Cancel", MsgBoxStyle.Information, "Part Bodys/GeoSets Selection"
+                                                            mySel = mySelection
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object mySel.SelectElement3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            sAnswer = mySel.SelectElement3(selfilter, "Select the Part Bodys or GeoSets, then select the green ball to end the selection.", False, INFITF.CATMultiSelectionMode.CATMultiSelTriggWhenUserValidatesSelection, False)
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            If sAnswer = "Undo" Or sAnswer = "Cancel" Then
+                                                                Exit Sub
+                                                            End If
+                                                            'UPGRADE_WARNING: Couldn't resolve default property of object mySel.Count. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                            nBodys = mySel.Count
+                                                            For hCnt = 1 To nBodys
+                                                                'UPGRADE_WARNING: Couldn't resolve default property of object mySel.Item. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                myObjects(hCnt) = mySel.Item(hCnt).Value
+                                                                'UPGRADE_WARNING: Couldn't resolve default property of object myObjects().Parent. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                myBodyPart = myObjects(hCnt).Parent.Parent
+                                                                'UPGRADE_WARNING: Couldn't resolve default property of object myBodyPart.Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                                                                Debug.Print(TypeName(myObjects(hCnt)) & "  " & myBodyPart.Name)
+                                                                Next
+                                                            Else
+                                                                ' Hide All Bodies
+                                                                For j = 1 To nBodys
+                                                                    'UPGRADE_WARNING: Couldn't resolve default property of object myPart.Bodies.Item(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                    mySelection.Add(myPart.Bodies.Item(j))
+                                                                    myObjects(j) = myPart.Bodies.Item(j)
+                                                                    'UPGRADE_WARNING: Couldn't resolve default property of object myObjects(j).Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                    'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                                                                    Debug.Print(TypeName(myObjects(j)) & "  " & myObjects(j).Name)
+                                                                    Next
+                                                                    For j = 1 To myPart.HybridBodies.Count
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myPart.HybridBodies.Item(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        mySelection.Add(myPart.HybridBodies.Item(j))
+                                                                        Next
+                                                                    End If
+                                                                Else
+                                                                    nBodys = 1
+                                                                    If myPart.MainBody.Shapes.Count = 0 Then
+                                                                        myObjects(1) = myPart.HybridBodies.Item(1)
+                                                                    Else
+                                                                        myObjects(1) = myPart.MainBody
+                                                                    End If
+                                                                End If
+                                                                ' Hide Planes
+                                                                myOriginElements = myPart.OriginElements
+
+                                                                myHSPlaneExplicit = myOriginElements.PlaneXY
+                                                                mySelection.Add(myHSPlaneExplicit)
+                                                                myHSPlaneExplicit = myOriginElements.PlaneYZ
+                                                                mySelection.Add(myHSPlaneExplicit)
+                                                                myHSPlaneExplicit = myOriginElements.PlaneZX
+                                                                mySelection.Add(myHSPlaneExplicit)
+                                                                myVisPropertySet = mySelection.VisProperties
+                                                                'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+                                                                myVisPropertySet = mySelection.VisProperties
+                                                                'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+                                                                mySelection.Clear()
+                                                            Else
+                                                                'UPGRADE_NOTE: Object myPart may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+                                                                myPart = Nothing
+                                                                nBodys = 1
+
+                                                            End If
+                                                            ' Loop Thru Bodies
+                                                            For iBody = 1 To nBodys
+                                                                If myProd.Products.Count > 0 Then ' Product
+                                                                    myPartNumber = myProd.Name
+                                                                ElseIf iBody = 1 Then
+                                                                    If iType = 3 Then
+                                                                        myPartNumber = VB.Left(sFileName, Len(sFileName) - 4)
+                                                                    Else
+                                                                        myPartNumber = myPart.Name
+                                                                    End If
+                                                                Else
+                                                                    myPartNumber = myPart.Name & "-Part-" & iBody
+                                                                End If
+
+                                                                If myPart Is Nothing Then ' Product
+                                                                    j = j
+                                                                Else
+                                                                    mySelection.Clear()
+                                                                    ' Hide All Bodies
+                                                                    For j = 1 To myPart.Bodies.Count
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myPart.Bodies.Item(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        mySelection.Add(myPart.Bodies.Item(j))
+                                                                        Next
+                                                                        For j = 1 To myPart.HybridBodies.Count
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myPart.HybridBodies.Item(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            mySelection.Add(myPart.HybridBodies.Item(j))
+                                                                            Next
+                                                                            myVisPropertySet = mySelection.VisProperties
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+                                                                            mySelection.Clear()
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myObjects(). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            mySelection.Add(myObjects(iBody))
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
+                                                                            mySelection.Clear()
+                                                                        End If
+                                                                        ' Reframe View to ISO
+                                                                        ReFrameISO()
+
+                                                                        ' Find X, Y, Z
+                                                                        sVolume = "0"
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        CATIA.StatusBar = "Finding Size and Weight..."
+                                                                        FindBoundingBoxXYZ myPart, myObjects(iBody), sX, sY, sZ, sVolume
+
+                                                                        'Retrieve the mass just to show it worked
+                                                                        myMass = System.Math.Round(CDbl(sVolume) * 0.284, 2)
+
+                                                                        Wait4()
+                                                                        System.Windows.Forms.Application.DoEvents()
+                                                                        If myPart Is Nothing Then
+                                                                            MsgBox "duplicate issue you were having"
+                                                                            Exit Sub
+                                                                            ' GoTo Duplicate
+                                                                        End If
+                                                                        ' Hide Annotation Sets
+                                                                        If myPart.AnnotationSets.Count > 0 Then
+                                                                            mySelection.Clear()
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myPart.AnnotationSets.Item. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            mySelection.Add(myPart.AnnotationSets.Item(1))
+                                                                            myVisPropertySet = mySelection.VisProperties
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+                                                                            mySelection.Clear()
+                                                                        End If
+
+                                                                        ' Take Snapshot
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        CATIA.StatusBar = "Taking Snapshot..."
+                                                                        Snapshot myPath & "\Photos\" & myPartNumber, sX, sY, sZ, myMass, (myProd.Name), sPhotoFile
+                                                                        System.Windows.Forms.Application.DoEvents()
+
+                                                                        ' 3DXML save
+                                                                        If sVolume <> "0" Then
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object sPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            sPicture = sFileName & ".3dxml"
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object sPicture. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myProductDoc.ExportData. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            myProductDoc.ExportData myPath & "\Photos\" & sPicture, "3dxml"
+                                                                        End If
+
+                                                                        ' Get Parameters
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        CATIA.StatusBar = "Reading Parameters..."
+                                                                        GetParams myPart, myProd, sMatl, myThickness, sPartName
+
+                                                                        Wait4()
+                                                                        ' Excel Output
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 1).Value = iRow - 1
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 3).Value = sFileName ' File Number
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 4).Value = myPartNumber ' Part Number
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 5).Value = sPartName ' Part Name
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        If sX <> "0" Then
+                                                                            myWorksheet.Cells(iRow, 6).Value = sX ' X Dimension
+                                                                        End If
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        If sY <> "0" Then
+                                                                            myWorksheet.Cells(iRow, 7).Value = sY ' Y Dimension
+                                                                        End If
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        If sZ <> "0" Then
+                                                                            myWorksheet.Cells(iRow, 8).Value = sZ ' Z Dimension
+                                                                        End If
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 9).Value = sMatl ' Matl
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 10).Value = myThickness ' Material Thickness
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        If myMass <> CDbl("0") Then
+                                                                            myWorksheet.Cells(iRow, 11).Value = myMass ' Finished Weight
+                                                                        End If
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 18).Value = Mid(sPhotoFile, InStrRev(sPhotoFile, "\") + 1, 99) ' Picture File
+
+                                                                        ' Insert Picture and Stretch Row
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 2).RowHeight = 80
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myWorksheet.Cells(iRow, 2).Select()
+                                                                        ' Picture
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object myExcel.ActiveSheet.Shapes. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        oPicture = myExcel.ActiveSheet.Shapes.AddPicture(sPhotoFile, False, True, 1, 1, 100, 75)
+                                                                        'With myExcel.ActiveSheet.Pictures.Insert(sPhotoFile)
+                                                                        With oPicture
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object oPicture.Left. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myExcel.ActiveSheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            .Left = myExcel.ActiveSheet.Cells(iRow, 2).Left
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object oPicture.Top. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object myExcel.ActiveSheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            .Top = myExcel.ActiveSheet.Cells(iRow, 2).Top
+                                                                            'UPGRADE_WARNING: Couldn't resolve default property of object oPicture.Placement. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            .Placement = 1
+                                                                        End With
+                                                                        iRow = iRow + 1
+                                                                        Next
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.ActiveDocument. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        myDoc = CATIA.ActiveDocument
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.DisplayFileAlerts. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        CATIA.DisplayFileAlerts = False
+                                                                        ' Move Original files to Supplied Data
+                                                                        'Dim fs As FileSystemObject
+                                                                        fs = CreateObject("Scripting.FileSystemObject")
+                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object fs.MoveFile. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                        fs.MoveFile myPath & "\" & sFileName, myPath & "\" & myCopiedData & "\" & sFileName
+                                                                        'UPGRADE_NOTE: Object fs may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+                                                                        fs = Nothing
+                                                                        If iType = 1 Then
+                                                                            If boolStep = True Then
+                                                                                ' Some parts will not create Step
+                                                                                On Error Resume Next
+                                                                                If InStr(1, myPart.Name, "|", 1) > 0 Or InStr(1, myPart.Name, ",", 1) > 0 Then
+                                                                                    sPartName = Replace(myPart.Name, "|", "_")
+                                                                                    sPartName = Replace(sPartName, ",", "_")
+                                                                                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & sPartName & ".stp", "stp"
+                                                                                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & sPartName & ".igs", "igs"
+                                                                                Else
+                                                                                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & myPart.Name & ".stp", "stp"
+                                                                                    myDoc.ExportData myPath & "\" & mySaveDir & "\" & myPart.Name & ".igs", "igs"
+                                                                                End If
+                                                                                On Error GoTo 0
+                                                                            End If
+                                                                            myDoc.Close()
+                                                                        Else
+                                                                            If iType = 2 Then
+                                                                                myDoc.ExportData myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".igs", "igs"
+                                                                            End If
+                                                                            If iType = 3 And boolStep = True Then
+                                                                                myDoc.ExportData myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".stp", "stp"
+                                                                                myDoc.SaveAs myPath & "\" & mySaveDir & "\" & VB.Left(sFileName, Len(sFileName) - 4) & ".CATPart"
+                                                                            Else
+                                                                                'UPGRADE_NOTE: Object myProductDoc1 may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+                                                                                myProductDoc1 = Nothing
+                                                                                'UPGRADE_NOTE: Object myPartDoc1 may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+                                                                                myPartDoc1 = Nothing
+                                                                                myPart.Update()
+                                                                                'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                For jj = 1 To CATIA.Documents.Count
+                                                                                    'Debug.Print CATIA.Documents.Item(jj).Name
+                                                                                    'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                    If InStr(1, CATIA.Documents.Item(jj).Name, ".CATProduct") > 0 Then
+                                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                        myProductDoc1 = CATIA.Documents.Item(jj)
+                                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                        myProductDoc1.SaveAs(myPath & "\" & mySaveDir & "\" & CATIA.Documents.Item(jj).Name)
+                                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                    ElseIf InStr(1, CATIA.Documents.Item(jj).Name, ".CATPart") > 0 And InStr(1, CATIA.Documents.Item(jj).Name, ".CATPart.CATPart") <= 0 Then
+                                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                        myPartDoc1 = CATIA.Documents.Item(jj)
+                                                                                        'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.Documents. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                        myPartDoc1.SaveAs(myPath & "\" & mySaveDir & "\" & CATIA.Documents.Item(jj).Name)
+                                                                                    End If
+                                                                                    Next
+                                                                                    On Error Resume Next
+                                                                                    If Not myPartDoc1 Is Nothing Then
+                                                                                        myDoc.SaveAs(myPath & "\" & mySaveDir & "\" & myPart.Name & ".CATPart")
+                                                                                    End If
+                                                                                    If Not myProductDoc1 Is Nothing Then
+                                                                                        myProductDoc1.Close()
+                                                                                    End If
+                                                                                    If Not myPartDoc1 Is Nothing Then
+                                                                                        myPartDoc1.Close()
+                                                                                    End If
+                                                                                    On Error GoTo 0
+                                                                                End If
+                                                                                On Error Resume Next
+                                                                                'UPGRADE_WARNING: Couldn't resolve default property of object myPartDocument.Close. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                                myPartDocument.Close()
+                                                                                On Error GoTo 0
+                                                                            End If
+                                                                            '  Duplicate:
+                                                                            '                                                                                                         'UPGRADE_WARNING: Dir has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
+                                                                            '                                                                                                         sFileName = Dir() ' get Next file
+                                                                            '                                                                                                     Loop
+                                                                            '                                                                                                     ' End Loop
+                                                                            '                                                                                                     Next
+                                                                            '                                                                                                     ' Move R24 Step Files to Translated
+                                                                            '                                                                                                     For j = 1 To iCnt
+                                                                            '                                                                                                         sR24PartNames(j) = Replace(sR24PartNames(j), "CATPart", "stp")
+                                                                            '                                                                                                         fsys = CreateObject("Scripting.FileSystemObject")
+                                                                            '                                                                                                         fsys.MoveFile(myPath & "\" & myCopiedData & "\" & sR24PartNames(j), myPath & "\" & mySaveDir & "\" & sR24PartNames(j))
+                                                                            '                                                                                                         'UPGRADE_NOTE: Object fsys may not be destroyed until it is garbage collected. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6E35BFF6-CD74-4B09-9689-3E1A43DF8969"'
+                                                                            '                                                                                                         fsys = Nothing
+                                                                            '                                                                                                         Next
+                                                                            '                                                                                                         'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            '                                                                                                         CATIA.StatusBar = "Done"
+                                                                            '                                                                                                         'UPGRADE_WARNING: Couldn't resolve default property of object myWorksheet.Cells. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            '                                                                                                         myWorksheet.Cells(1, 1).Select()
+                                                                            '                                                                                                         myExcel.DisplayAlerts = False
+                                                                            '                                                                                                         ' Save Template file to Data Directory
+                                                                            '                                                                                                         sFileName = myPath & "\Cad Info.xlsx"
+                                                                            '                                                                                                         myWorkbook.SaveAs(sFileName)
+                                                                            '                                                                                                         'UPGRADE_WARNING: Couldn't resolve default property of object I. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+                                                                            '                                                                                                         I = MsgBox "Saved as " & sFileName & vbCr & "Type OK to Open", MsgBoxStyle.Information + MsgBoxStyle.OKCancel, "Project Estimating Done"
+                                                                            '                                                                                                         Dim strAction As String
+                                                                            '                                                                                                         Dim lngErr As Integer
+                                                                            '                                                                                                         If I = MsgBoxResult.Cancel Then
+                                                                            '                                                                                                             myWorkbook.Close()
+                                                                            '                                                                                                             myExcel.Quit()
+                                                                            '                                                                                                             'myExcel = Nothing
+                                                                            '                                                                                                         Else
+                                                                            '                                                                                                             myWorkbook.Close()
+                                                                            '                                                                                                             myExcel.Quit()
+                                                                            '                                                                                                             myExcel.Quit()
+                                                                            '                                                                                                             strAction = "OPEN" ' action might be OPEN, NEW or other, depending on what you need to do
+                                                                            '                                                                                                             lngErr = ShellExecute(0, strAction, sFileName, "", "", 0)
+                                                                            '                                                                                                         End If
+                                                                            '                                                                                                         End
+End Sub
+
+
+' 1520
