@@ -660,6 +660,27 @@ Sub AddHybridBodies(myPart, mySelection)
     Loop While j9 <=myPart.HybridBodies.Count
 End Sub
 
+Sub AddBodies(myPart, mySelection)
+    j9 = 0
+    Do
+        j9 = j9 + 1
+        mySelection.Add(myPart.Bodies.Item(j9))
+    Loop While j9 <=myPart.Bodies.Count
+End Sub
+
+Sub HideAnnotations(myPart, mySelection)
+    If myPart.AnnotationSets.Count > 0 Then
+        mySelection.Clear()
+        'UPGRADE_WARNING: Couldn't resolve default property of object myPart.AnnotationSets.Item. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        mySelection.Add(myPart.AnnotationSets.Item(1))
+        myVisPropertySet = mySelection.VisProperties
+        'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+        myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
+        mySelection.Clear()
+    End If
+
+End Sub
+
 Sub AddHybridShapes(myPart, mySelection)
     Do
         j5 = j5 + 1
@@ -862,59 +883,25 @@ Sub CATMain()
             nBodys = 0
             mySelection.Clear()
 
-            j = 0
-
-            Do
-                j = j + 1
-                ' MsgBox myPart.Bodies.Count
-                ' Set myBody = myPart.Bodies.Item(j - 1)
-                Set bodies = myPart.Bodies As Bodies
-                Set myBody = bodies.Item(1)
-
-                If myBody.Shapes.Count > 0 Then
-                    nBodys = nBodys + 1
-                    'UPGRADE_WARNING: Couldn't resolve default property of object myBody. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    If iType = 1 Then
-                        mySelection.Add(myBody)
-                    End If
-                End If
-
-            Loop While j <= myPart.Bodies.Count
-
-
             AddHybridShapes myPart, mySelection
-
-
-
-
-
+            AddBodies myPart, mySelection
 
             ' On Error Resume Next
             If nBodys > 1 Then
                 If iType = 1 Then
                     Set myVisPropertySet = mySelection.VisProperties
-                    'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
                     myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyShowAttr)
                 End If
-                ' MsgBox "here"
-                ' ReFrameISO()
-                'UPGRADE_WARNING: Couldn't resolve default property of object iRet. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                ' Set iRet = MsgBox(nBodys & " Bodies Found in " & myPart.Name & vbCrLf & "Yes to Multi Process all Bodies" & vbCrLf & "No to Select Geo Sets and Bodies", MsgBoxStyle.YesNoCancel + MsgBoxStyle.DefaultButton1 + MsgBoxStyle.Information, "Process Individual Bodies")
-                ' If iRet = MsgBoxResult.Cancel Then
                 If True Then
                     nBodys = 1
                 ElseIf iRet = MsgBoxResult.No Then
                     mySelection.Clear()
-                    'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(0). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
                     selfilter(0) = "Body"
-                    'UPGRADE_WARNING: Couldn't resolve default property of object selfilter(1). Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
                     selfilter(1) = "HybridBody"
                     MsgBox "Select the Part Bodys or GeoSets, then select the green ball to end the selection." & vbCrLf & "Or UNDO to Cancel", MsgBoxStyle.Information, "Part Bodys/GeoSets Selection"
                     mySel = mySelection
-                    'UPGRADE_WARNING: Couldn't resolve default property of object mySel.SelectElement3. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                    'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
                     sAnswer = mySel.SelectElement3(selfilter, "Select the Part Bodys or GeoSets, then select the green ball to end the selection.", False, INFITF.CATMultiSelectionMode.CATMultiSelTriggWhenUserValidatesSelection, False)
-                    'UPGRADE_WARNING: Couldn't resolve default property of object sAnswer. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+
                     If sAnswer = "Undo" Or sAnswer = "Cancel" Then
                         Exit Sub
                     End If
@@ -936,17 +923,11 @@ Sub CATMain()
 
                     Loop While hCnt <= nBodys
                 Else
-                    Do
-                        j = j + 1
-                        mySelection.Add(myPart.Bodies.Item(j))
-                        myObjects(j) = myPart.Bodies.Item(j)
-                        'UPGRADE_WARNING: Couldn't resolve default property of object myObjects(j).Name. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                        'UPGRADE_WARNING: TypeName has a new behavior. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="9B7D5ADD-D8FE-4819-A36C-6DEDAF088CC7"'
 
 
 
-                    Loop While j <= nBodys
 
+                    AddBodies myPart, mySelection
                     AddHybridBodies myPart, mySelection
 
 
@@ -988,38 +969,12 @@ Sub CATMain()
                 j = j
             Else
                 mySelection.Clear()
-
-                ' mySelection.Add(myPart.Bodies)
-
-
-                jk = 0
-                Do
-                    jk = jk + 1
-                    mySelection.Add(myPart.Bodies.Item(jk))
-
-
-                Loop While jk <myPart.Bodies.Count
-
-                jl = 0
-                Do
-                    jl = jl + 1
-                    mySelection.Add(myPart.HybridBodies.Item(jl))
-
-                Loop While jl <myPart.HybridBodies.Count
-
-                ' mySelection.Add(myPart.HybridBodies)
-
-                ' MsgBox  mySelection.Count
-
-
+                AddBodies myPart, mySelection
+                AddHybridBodies myPart, mySelection
 
                 Set myVisPropertySet = mySelection.VisProperties
                 myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
                 mySelection.Clear()
-
-                ' MsgBox TypeName(iBody)
-                ' MsgBox TypeName(myObjects)
-
 
                 Set obj11 = myObjects(iBody) As Object
 
@@ -1048,15 +1003,9 @@ Sub CATMain()
                 Exit Sub
             End If
             ' Hide Annotation Sets
-            If myPart.AnnotationSets.Count > 0 Then
-                mySelection.Clear()
-                'UPGRADE_WARNING: Couldn't resolve default property of object myPart.AnnotationSets.Item. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                mySelection.Add(myPart.AnnotationSets.Item(1))
-                myVisPropertySet = mySelection.VisProperties
-                'UPGRADE_WARNING: Couldn't resolve default property of object myVisPropertySet.SetShow. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
-                myVisPropertySet.SetShow(INFITF.CatVisPropertyShow.catVisPropertyNoShowAttr)
-                mySelection.Clear()
-            End If
+
+            HideAnnotations myPart, mySelection
+
 
             ' Take Snapshot
             'UPGRADE_WARNING: Couldn't resolve default property of object CATIA.StatusBar. Click for more: 'ms-help://MS.VSCC.v90/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
@@ -1107,18 +1056,10 @@ Sub CATMain()
                 .Placement = 1
             End With
             iRow = iRow + 1
-            ' Next
-
-            ' MsgBox iBody & " " & nBodys
-
 
         Loop While iBody < nBodys
 
-        If Not fsys.FolderExists(myPath & "\temp") Then
-            fsys.CreateFolder(myPath & "\temp")
-        End If
 
-        ' Loop
 
     Loop While kkk < 2
 
